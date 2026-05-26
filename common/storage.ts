@@ -24,6 +24,19 @@ function isValidCycle(value: unknown): value is Cycle {
     && Array.isArray(cycle.effective_movements)
 }
 
+function isValidState(value: unknown): value is FetalMovementState {
+  if (!value || typeof value !== "object") return false
+  const state = value as Partial<FetalMovementState>
+  return state.schema_version === 1
+    && (state.active_cycle === null || isValidCycle(state.active_cycle))
+    && Array.isArray(state.completed_cycles)
+    && state.completed_cycles.every(isValidCycle)
+}
+
+function isBackupSource(value: unknown): value is BackupSource {
+  return value === "manual" || value === "shortcut" || value === "auto"
+}
+
 export function migrateStateIfNeeded(value: unknown): FetalMovementState {
   if (!value || typeof value !== "object") return defaultState()
   const state = value as Partial<FetalMovementState>
@@ -135,6 +148,61 @@ export async function createBackupFile(source: BackupSource, exportedTs = Date.n
 
   const message = lastError instanceof Error ? lastError.message : String(lastError ?? "未知错误")
   throw new Error(`写入备份文件失败：${message}`)
+}
+
+export function parseBackupJson(raw: string): FetalMovementBackup {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new Error("备份文件不是有效 JSON。")
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("备份内容格式无效。")
+  }
+
+  const backup = parsed as Partial<FetalMovementBackup>
+  if (backup.app !== "Tiny Kick Counter") {
+    throw new Error("备份文件不属于 Tiny Kick Counter。")
+  }
+  if (backup.backup_version !== 1) {
+    throw new Error("备份版本不受支持。")
+  }
+  if (typeof backup.exported_at !== "string" || typeof backup.exported_ts !== "number" || !Number.isFinite(backup.exported_ts)) {
+    throw new Error("备份导出时间无效。")
+  }
+  if (!isBackupSource(backup.source)) {
+    throw new Error("备份来源无效。")
+  }
+  if (!isValidState(backup.state)) {
+    throw new Error("备份状态数据无效。")
+  }
+
+  return {
+    app: "Tiny Kick Counter",
+    backup_version: 1,
+    exported_at: backup.exported_at,
+    exported_ts: backup.exported_ts,
+    source: backup.source,
+    state: migrateStateIfNeeded(backup.state),
+  }
+}
+
+export async function readBackupFile(filePath: string): Promise<FetalMovementBackup> {
+  const raw = await FileManager.readAsString(filePath)
+  return parseBackupJson(raw)
+}
+
+export function restoreFromBackup(backup: FetalMovementBackup): FetalMovementState {
+  const restoredState = parseBackupJson(JSON.stringify(backup)).state
+  saveState(restoredState)
+  return restoredState
+}
+
+export async function restoreFromBackupFile(filePath: string): Promise<FetalMovementState> {
+  const backup = await readBackupFile(filePath)
+  return restoreFromBackup(backup)
 }
 
 export function exportState(): string {

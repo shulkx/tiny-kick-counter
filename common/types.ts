@@ -8,7 +8,7 @@ export const ESTIMATE_HOURS = 12
 
 export type Source = "shortcut" | "widget" | "app" | "unknown"
 export type CloseReason = "expired" | "manual"
-export type Command = "record" | "close_cycle" | "status" | "export" | "reset"
+export type Command = "record" | "close_cycle" | "status" | "export" | "restore" | "reset"
 export type BackupSource = "manual" | "shortcut" | "auto"
 export type BackupStorage = "icloud" | "documents" | "app_group"
 
@@ -63,6 +63,8 @@ export type CommandInput = {
   event_ts: number
   source: Source
   warning?: string
+  backup_file_path?: string
+  backup_json?: string
 }
 
 export type CommandResult = {
@@ -84,6 +86,11 @@ export type CommandResult = {
   export_file_name?: string
   export_directory?: string
   export_storage?: BackupStorage
+  restore_backup_file_path?: string
+  restore_safety_backup_file_path?: string
+  restore_safety_backup_file_name?: string
+  restored_completed_cycle_count?: number
+  restored_has_active_cycle?: boolean
 }
 
 export type DayCard = {

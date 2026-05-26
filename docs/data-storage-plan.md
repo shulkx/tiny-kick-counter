@@ -56,17 +56,19 @@ export type FetalMovementBackup = {
 }
 ```
 
-### 阶段 2：从备份恢复
+### 阶段 2：从备份恢复（已实现）
 
-在导出稳定后，再支持恢复。
+在导出稳定后，支持从备份恢复当前状态。
 
-计划改动：
+实现内容：
 
-- 支持选择或读取备份 JSON 并恢复当前状态。
-- 恢复前自动导出当前状态，生成安全备份。
-- 校验 `app`、`backup_version`、`state.schema_version`。
-- 开发阶段只接受当前版本格式，不处理历史 schema 迁移。
-- 恢复失败时保留现有状态不变。
+- 主页面新增“恢复”入口，可从 Files app 选择备份 JSON。
+- `restore` 命令支持通过 `backup_file_path` 或 `backup_json` 恢复，便于 Shortcuts 自动化。
+- 恢复前会自动导出当前状态，生成 `source: "auto"` 的安全备份。
+- 严格校验 `app === "Tiny Kick Counter"`、`backup_version === 1`、`state.schema_version === 1`。
+- 开发阶段只接受当前备份格式，不处理历史 schema 迁移，也不接受裸 `FetalMovementState` JSON。
+- 恢复失败时返回错误信息，并保留现有状态不变。
+- 恢复成功后会取消旧周期结束通知；如果恢复后的状态包含正在进行的周期，会重新安排周期结束通知。
 
 ### 阶段 3：切换主存储到文件
 
@@ -103,11 +105,10 @@ JSON 备份用于完整恢复，CSV 用于阅读和分享。
 
 ## 推荐下一步
 
-先实现阶段 1：JSON 备份导出。
+继续推进阶段 3：在导出和恢复能力稳定后，将主状态从 `Storage` 切换到 App Group JSON 文件。
 
 涉及文件预计为：
 
-- `common/types.ts`：增加备份类型和导出结果类型字段。
-- `common/storage.ts`：增加创建备份对象、写入备份文件的函数。
-- `common/model.ts`：让 `export` 命令返回备份文件信息。
-- `index.tsx`：将主页面“导出”按钮改为写入备份文件。
+- `common/storage.ts`：将主状态读写改为 App Group JSON 文件，保留备份导出目录。
+- `common/model.ts`：保持业务入口不变，复用新的文件存储实现。
+- `widget.tsx`、`intent.tsx`、`app_intents.tsx`：确认共享文件存储在各入口均可读取。

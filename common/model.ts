@@ -11,7 +11,7 @@ import {
 import { formatDayKey, formatLocal, formatTime } from "../utils/date"
 import { isFutureRejected } from "../utils/command"
 import { cancelPendingCycleEndNotifications, scheduleCycleEndNotification } from "../utils/notifications"
-import { createBackupFile, defaultState, exportState, readState, saveState } from "./storage"
+import { createBackupFile, defaultState, exportState, parseBackupJson, readState, restoreFromBackup, restoreFromBackupFile, saveState } from "./storage"
 
 export async function resetState(): Promise<CommandResult> {
   const nowTs = Date.now()
@@ -221,7 +221,57 @@ export async function status(eventTs: number, source: Source): Promise<CommandRe
   })
 }
 
-export async function runCommand(command: Command, eventTs: number, source: Source): Promise<CommandResult> {
+async function syncNotificationsForRestoredState(state: FetalMovementState): Promise<void> {
+  await cancelPendingCycleEndNotifications()
+  if (state.active_cycle) {
+    await scheduleCycleEndNotification(state.active_cycle)
+  }
+}
+
+function restoreSuccessResult(command: Command, source: Source, eventTs: number, restoredState: FetalMovementState, safetyBackup: Awaited<ReturnType<typeof createBackupFile>>, backupFilePath?: string): CommandResult {
+  return result(command, source, eventTs, "restore", "恢复胎动数据", `已从备份恢复胎动数据。恢复前安全备份：${safetyBackup.file_name}`, {
+    restore_backup_file_path: backupFilePath,
+    restore_safety_backup_file_path: safetyBackup.file_path,
+    restore_safety_backup_file_name: safetyBackup.file_name,
+    restored_completed_cycle_count: restoredState.completed_cycles.length,
+    restored_has_active_cycle: !!restoredState.active_cycle,
+  })
+}
+
+export async function restoreBackupFromFile(filePath: string, eventTs: number, source: Source): Promise<CommandResult> {
+  const nowTs = Date.now()
+  if (isFutureRejected(eventTs, nowTs)) {
+    return result("restore", source, eventTs, "future_time_rejected", "恢复胎动数据", "恢复时间异常，晚于当前时间过多，已取消。")
+  }
+  try {
+    const safetyBackup = await createBackupFile("auto", eventTs)
+    const restoredState = await restoreFromBackupFile(filePath)
+    await syncNotificationsForRestoredState(restoredState)
+    return restoreSuccessResult("restore", source, eventTs, restoredState, safetyBackup, filePath)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return result("restore", source, eventTs, "restore_failed", "恢复胎动数据", `恢复失败：${message}`, { warning: message })
+  }
+}
+
+export async function restoreBackupFromJson(raw: string, eventTs: number, source: Source): Promise<CommandResult> {
+  const nowTs = Date.now()
+  if (isFutureRejected(eventTs, nowTs)) {
+    return result("restore", source, eventTs, "future_time_rejected", "恢复胎动数据", "恢复时间异常，晚于当前时间过多，已取消。")
+  }
+  try {
+    const safetyBackup = await createBackupFile("auto", eventTs)
+    const backup = parseBackupJson(raw)
+    const restoredState = restoreFromBackup(backup)
+    await syncNotificationsForRestoredState(restoredState)
+    return restoreSuccessResult("restore", source, eventTs, restoredState, safetyBackup)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return result("restore", source, eventTs, "restore_failed", "恢复胎动数据", `恢复失败：${message}`, { warning: message })
+  }
+}
+
+export async function runCommand(command: Command, eventTs: number, source: Source, options: { backup_file_path?: string; backup_json?: string } = {}): Promise<CommandResult> {
   if (command === "close_cycle") return closeCycle(eventTs, source)
   if (command === "status") return status(eventTs, source)
   if (command === "export") {
@@ -252,8 +302,13 @@ export async function runCommand(command: Command, eventTs: number, source: Sour
       })
     }
   }
+  if (command === "restore") {
+    if (options.backup_file_path) return restoreBackupFromFile(options.backup_file_path, eventTs, source)
+    if (options.backup_json) return restoreBackupFromJson(options.backup_json, eventTs, source)
+    return result("restore", source, eventTs, "restore_missing_backup", "恢复胎动数据", "缺少备份文件路径或备份 JSON，已取消恢复。")
+  }
   if (command === "reset") return resetState()
   return recordMovement(eventTs, source)
 }
 
-export { createBackup, createBackupFile, defaultState, exportState, migrateStateIfNeeded, readState, saveState } from "./storage"
+export { createBackup, createBackupFile, defaultState, exportState, migrateStateIfNeeded, parseBackupJson, readBackupFile, readState, restoreFromBackup, restoreFromBackupFile, saveState } from "./storage"

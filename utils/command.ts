@@ -12,7 +12,7 @@ export function normalizeSource(value: unknown): Source {
 }
 
 export function normalizeCommand(value: unknown): Command {
-  if (value === "close_cycle" || value === "status" || value === "export" || value === "reset") {
+  if (value === "close_cycle" || value === "status" || value === "export" || value === "restore" || value === "reset") {
     return value
   }
   return "record"
@@ -23,6 +23,8 @@ export function parseCommandParameter(raw: unknown, nowTs = Date.now()): Command
   let command: Command = "record"
   let event_ts = nowTs
   let source: Source = "unknown"
+  let backup_file_path: string | undefined
+  let backup_json: string | undefined
 
   const rawValue = typeof raw === "object" && raw !== null && "value" in raw
     ? (raw as { value: unknown }).value
@@ -38,6 +40,8 @@ export function parseCommandParameter(raw: unknown, nowTs = Date.now()): Command
       } else {
         warning = "event_ts 缺失或非法，已使用当前时间。"
       }
+      if (typeof parsed.backup_file_path === "string") backup_file_path = parsed.backup_file_path
+      if (typeof parsed.backup_json === "string") backup_json = parsed.backup_json
     } catch {
       command = normalizeCommand(rawValue.trim())
       warning = "参数不是 JSON，已按纯文本命令处理。"
@@ -51,11 +55,13 @@ export function parseCommandParameter(raw: unknown, nowTs = Date.now()): Command
     } else {
       warning = "event_ts 缺失或非法，已使用当前时间。"
     }
+    if (typeof parsed.backup_file_path === "string") backup_file_path = parsed.backup_file_path
+    if (typeof parsed.backup_json === "string") backup_json = parsed.backup_json
   } else if (rawValue != null) {
     warning = "参数类型无法识别，已按 record 处理。"
   }
 
-  return { command, event_ts, source, warning }
+  return { command, event_ts, source, warning, backup_file_path, backup_json }
 }
 
 export function isFutureRejected(eventTs: number, nowTs = Date.now()): boolean {

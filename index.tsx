@@ -21,6 +21,7 @@ import {
   readState,
   recordMovement,
   resetState,
+  restoreBackupFromFile,
   saveState,
 } from "./common/model"
 import { buildDayCards } from "./common/stats"
@@ -121,7 +122,7 @@ function MainPage() {
   const [nowTs, setNowTs] = useState(Date.now())
   const [toastMessage, setToastMessage] = useState("")
   const [showToast, setShowToast] = useState(false)
-  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<"reset" | "restore" | null>(null)
 
   function requestWidgetReload() {
     Widget.reloadAll()
@@ -173,9 +174,29 @@ function MainPage() {
     }
   }
 
+  async function handleRestore() {
+    setConfirmAction(null)
+    try {
+      const files = await DocumentPicker.pickFiles()
+      const filePath = files[0]
+      if (!filePath) {
+        refresh("已取消恢复。")
+        return
+      }
+      const result = await restoreBackupFromFile(filePath, Date.now(), "app")
+      refresh(result.message)
+      if (result.status === "restore") requestWidgetReload()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      refresh(`恢复失败：${message}`)
+    } finally {
+      DocumentPicker.stopAcessingSecurityScopedResources()
+    }
+  }
+
   async function handleReset() {
     const result = await resetState()
-    setShowResetConfirm(false)
+    setConfirmAction(null)
     refresh(result.message)
     requestWidgetReload()
   }
@@ -192,17 +213,20 @@ function MainPage() {
         primaryAction: [
           <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
           <Button title="导出" action={() => { void handleExport() }} />,
+          <Button title="恢复" action={() => setConfirmAction("restore")} />,
         ],
-        destructiveAction: <Button title="重置" role="destructive" action={() => setShowResetConfirm(true)} />,
+        destructiveAction: <Button title="重置" role="destructive" action={() => setConfirmAction("reset")} />,
       }}
       confirmationDialog={{
-        title: "重置胎动数据？",
-        isPresented: showResetConfirm,
-        onChanged: setShowResetConfirm,
-        message: <Text>此操作会清空当前周期和全部历史记录，不能撤销。</Text>,
+        title: confirmAction === "restore" ? "从备份恢复？" : "重置胎动数据？",
+        isPresented: confirmAction !== null,
+        onChanged: isPresented => { if (!isPresented) setConfirmAction(null) },
+        message: <Text>{confirmAction === "restore" ? "恢复会用备份文件覆盖当前胎动数据。恢复前会自动生成一份安全备份。" : "此操作会清空当前周期和全部历史记录，不能撤销。"}</Text>,
         actions: <VStack>
-          <Button title="确认重置" role="destructive" action={() => { void handleReset() }} />
-          <Button title="取消" role="cancel" action={() => setShowResetConfirm(false)} />
+          {confirmAction === "restore"
+            ? <Button title="选择备份并恢复" role="destructive" action={() => { void handleRestore() }} />
+            : <Button title="确认重置" role="destructive" action={() => { void handleReset() }} />}
+          <Button title="取消" role="cancel" action={() => setConfirmAction(null)} />
         </VStack>,
       }}
       toast={{
