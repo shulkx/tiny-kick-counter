@@ -1,5 +1,5 @@
 import { FetalMovementState, Cycle } from "../common/types"
-import { buildDayCards, selectWidgetRows } from "../common/stats"
+import { buildDayCards, selectWidgetRows, summarizeDayCards } from "../common/stats"
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message)
@@ -42,5 +42,10 @@ const selection = selectWidgetRows(cards[0])
 assert(selection.rows.length === 2, "widget shows two rows")
 assert(selection.rows[0].isActive === true, "active row first")
 assert(selection.hiddenCount === 0, "no hidden visible rows")
+
+const summary = summarizeDayCards(cards)
+assert(summary.recordDays === 2, "summary counts visible record days")
+assert(summary.cycleCount === 3, "summary counts visible cycles including active")
+assert(summary.effectiveTotal === 4, "summary sums visible effective movements")
 
 console.log("stats_test passed")

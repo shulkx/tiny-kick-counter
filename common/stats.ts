@@ -37,6 +37,14 @@ export function buildDayCards(state: FetalMovementState, limit = RECENT_DAY_LIMI
   return cards.sort((a, b) => b.day_key.localeCompare(a.day_key)).slice(0, limit)
 }
 
+export function summarizeDayCards(cards: DayCard[]): { recordDays: number; cycleCount: number; effectiveTotal: number } {
+  return {
+    recordDays: cards.length,
+    cycleCount: cards.reduce((sum, card) => sum + card.cycles.length, 0),
+    effectiveTotal: cards.reduce((sum, card) => sum + card.effective_total, 0),
+  }
+}
+
 export function getTodayCard(state: FetalMovementState, nowTs = Date.now()): DayCard | null {
   const today = formatDayKey(nowTs)
   const found = buildDayCards(state, RECENT_DAY_LIMIT).find(card => card.day_key === today)

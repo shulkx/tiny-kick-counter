@@ -1,13 +1,17 @@
 import {
   AppEvents,
   Button,
+  Color,
   Divider,
   HStack,
+  Image,
   Navigation,
   NavigationStack,
   Script,
   ScrollView,
   Spacer,
+  Tab,
+  TabView,
   Text,
   VStack,
   Widget,
@@ -24,9 +28,28 @@ import {
   restoreBackupFromFile,
   saveState,
 } from "./common/model"
-import { buildDayCards } from "./common/stats"
+import { buildDayCards, summarizeDayCards } from "./common/stats"
 import { Cycle, DayCard, FetalMovementState } from "./common/types"
-import { formatMinuteRemaining, formatTime } from "./utils"
+import { formatDayKey, formatMinuteRemaining, formatTime } from "./utils"
+
+const CARD_RADIUS = 22
+const SMALL_CARD_RADIUS = 16
+
+function roundedBackground(style: Color, radius = CARD_RADIUS): { style: Color; shape: { type: "rect"; cornerRadius: number } } {
+  return {
+    style,
+    shape: { type: "rect", cornerRadius: radius },
+  }
+}
+
+function cardShadow() {
+  return {
+    color: "rgba(120,72,56,0.10)" as Color,
+    radius: 12,
+    x: 0,
+    y: 6,
+  }
+}
 
 function loadStateWithLazyArchive(nowTs = Date.now()): FetalMovementState {
   const { state } = readState()
@@ -35,31 +58,49 @@ function loadStateWithLazyArchive(nowTs = Date.now()): FetalMovementState {
   return state
 }
 
-function Header({
+function RecordsHeroCard({
   state,
+  nowTs,
   onRecord,
   onCloseCycle,
 }: {
   state: FetalMovementState
+  nowTs: number
   onRecord: () => void
   onCloseCycle: () => void
 }) {
-  return <VStack alignment="leading" spacing={12} padding={16}>
-    <VStack alignment="leading" spacing={4}>
-      <Text font="largeTitle">胎动计数</Text>
-      <Text foregroundStyle="gray">记录 1 小时周期，5 分钟内连续点击计为子胎动</Text>
+  const activeCycle = state.active_cycle
+  return <VStack
+    alignment="leading"
+    spacing={14}
+    padding={18}
+    background={roundedBackground("rgba(255,244,238,0.96)")}
+    shadow={cardShadow()}
+  >
+    <VStack alignment="leading" spacing={5}>
+      <Text font="title3" fontWeight="medium">温柔记录每一次胎动</Text>
+      <Text font="subheadline" foregroundStyle="secondaryLabel">
+        {activeCycle
+          ? `当前周期剩约 ${formatMinuteRemaining(nowTs, activeCycle.scheduled_end_ts)} 分钟 · 已有效 ${activeCycle.effective_count} 次`
+          : "点击记录胎动开始 1 小时计数周期"}
+      </Text>
     </VStack>
     <HStack spacing={10}>
-      <Button title="记录胎动" systemImage="plus.circle.fill" action={onRecord} />
-      {state.active_cycle ? <Button title="结束当前周期" systemImage="xmark.circle" role="destructive" action={onCloseCycle} /> : null}
+      <Button title="记录胎动" systemImage="plus.circle.fill" buttonStyle="borderedProminent" action={onRecord} />
+      {activeCycle ? <Button title="结束当前周期" systemImage="xmark.circle" role="destructive" buttonStyle="bordered" action={onCloseCycle} /> : null}
     </HStack>
   </VStack>
 }
 
 function SummaryPill({ title, value }: { title: string; value: string | number }) {
-  return <VStack alignment="leading" spacing={2} padding={10} background="rgba(142,142,147,0.12)">
-    <Text font="caption" foregroundStyle="gray">{title}</Text>
-    <Text font="headline">{value}</Text>
+  return <VStack
+    alignment="leading"
+    spacing={3}
+    padding={11}
+    background={roundedBackground("rgba(255,255,255,0.68)", SMALL_CARD_RADIUS)}
+  >
+    <Text font="caption" foregroundStyle="secondaryLabel">{title}</Text>
+    <Text font="headline" fontWeight="medium">{value}</Text>
   </VStack>
 }
 
@@ -70,31 +111,44 @@ function CycleRow({ cycle, nowTs }: { cycle: Cycle; nowTs: number }) {
     ? `进行中 · 剩约 ${formatMinuteRemaining(nowTs, cycle.scheduled_end_ts)} 分钟`
     : "已完成"
 
-  return <VStack alignment="leading" spacing={6} padding={12} background={isActive ? "rgba(52,199,89,0.14)" : "rgba(142,142,147,0.10)"}>
+  return <VStack
+    alignment="leading"
+    spacing={7}
+    padding={13}
+    background={roundedBackground(isActive ? "rgba(52,199,89,0.14)" : "rgba(255,255,255,0.54)", SMALL_CARD_RADIUS)}
+  >
     <HStack>
-      <Text font="headline">{isActive ? "当前周期" : "计数周期"}</Text>
+      <Text font="subheadline" fontWeight="medium">{isActive ? "当前周期" : "计数周期"}</Text>
       <Spacer />
-      <Text foregroundStyle={isActive ? "green" : "gray"}>{status}</Text>
+      <Text font="caption" foregroundStyle={isActive ? "green" : "secondaryLabel"}>{status}</Text>
     </HStack>
-    <Text foregroundStyle="gray">{timeRange}</Text>
+    <Text font="caption" foregroundStyle="secondaryLabel">{timeRange}</Text>
     <HStack spacing={12}>
-      <Text>有效 {cycle.effective_count} 次</Text>
-      <Text foregroundStyle="gray">点击 {cycle.total_count} 次</Text>
+      <Text font="subheadline" fontWeight="medium">有效 {cycle.effective_count} 次</Text>
+      <Text font="subheadline" foregroundStyle="secondaryLabel">点击 {cycle.total_count} 次</Text>
     </HStack>
   </VStack>
 }
 
 function DayCardView({ card, nowTs }: { card: DayCard; nowTs: number }) {
-  return <VStack alignment="leading" spacing={12} padding={16} background="rgba(255,255,255,0.08)">
+  const isToday = card.day_key === formatDayKey(nowTs)
+  return <VStack
+    alignment="leading"
+    spacing={14}
+    padding={16}
+    background={roundedBackground("rgba(255,250,247,0.86)")}
+    shadow={cardShadow()}
+  >
     <HStack>
-      <VStack alignment="leading" spacing={4}>
-        <Text font="title3">{card.day_key}</Text>
-        <Text foregroundStyle="gray">{card.has_active_cycle ? "含正在进行周期" : "已完成计数"}</Text>
+      <VStack alignment="leading" spacing={5}>
+        <Text font="headline" fontWeight="medium">{isToday ? `今天 ${card.day_key.slice(5)}` : card.day_key}</Text>
+        <Text font="caption" foregroundStyle={card.has_active_cycle ? "green" : "secondaryLabel"}>{card.has_active_cycle ? "含正在进行周期" : "已完成计数"}</Text>
       </VStack>
       <Spacer />
-      <VStack alignment="trailing" spacing={2}>
-        <Text font="title2">推算 {card.estimated_count}</Text>
-        <Text font="caption" foregroundStyle="gray">12 小时</Text>
+      <VStack alignment="trailing" spacing={1}>
+        <Text font="caption" foregroundStyle="secondaryLabel">推算</Text>
+        <Text font="title" fontWeight="medium">{card.estimated_count} 次</Text>
+        <Text font="caption" foregroundStyle="secondaryLabel">/ 12小时</Text>
       </VStack>
     </HStack>
     <HStack spacing={8}>
@@ -104,17 +158,167 @@ function DayCardView({ card, nowTs }: { card: DayCard; nowTs: number }) {
     </HStack>
     <Divider />
     <VStack alignment="leading" spacing={8}>
-      {card.cycles.map(cycle => <CycleRow cycle={cycle} nowTs={nowTs} />)}
+      {isToday
+        ? card.cycles.map(cycle => <CycleRow cycle={cycle} nowTs={nowTs} />)
+        : <Text font="subheadline" foregroundStyle="secondaryLabel">{card.cycles.length} 个周期 · {card.has_active_cycle ? "含进行中周期" : "已完成计数"}</Text>}
     </VStack>
   </VStack>
 }
 
 function EmptyState() {
-  return <VStack alignment="center" spacing={8} padding={28}>
-    <Text font="title3">还没有胎动记录</Text>
-    <Text foregroundStyle="gray">点击“记录胎动”开始第一个 1 小时计数周期。</Text>
+  return <VStack
+    alignment="center"
+    spacing={8}
+    padding={28}
+    background={roundedBackground("rgba(255,244,238,0.82)")}
+  >
+    <Text font="title3" fontWeight="semibold">还没有胎动记录</Text>
+    <Text font="subheadline" foregroundStyle="secondaryLabel">点击“记录胎动”开始第一个 1 小时计数周期。</Text>
   </VStack>
 }
+
+function RecordsPage({
+  state,
+  cards,
+  nowTs,
+  onRecord,
+  onCloseCycle,
+}: {
+  state: FetalMovementState
+  cards: DayCard[]
+  nowTs: number
+  onRecord: () => void
+  onCloseCycle: () => void
+}) {
+  return <VStack alignment="leading" spacing={14}>
+    <RecordsHeroCard state={state} nowTs={nowTs} onRecord={onRecord} onCloseCycle={onCloseCycle} />
+    <Text font="headline" fontWeight="medium">每日记录</Text>
+    {cards.length === 0 ? <EmptyState /> : cards.map(card => <DayCardView card={card} nowTs={nowTs} />)}
+  </VStack>
+}
+
+function PlainCircleIcon({
+  systemName,
+  color,
+}: {
+  systemName: string
+  color: Color
+}) {
+  return <Image
+    systemName={systemName}
+    font={24}
+    fontWeight="medium"
+    foregroundStyle={color}
+    frame={{ width: 34, height: 34 }}
+  />
+}
+
+function SettingsActionRow({
+  title,
+  subtitle,
+  systemImage,
+  tint,
+  destructive,
+  action,
+}: {
+  title: string
+  subtitle: string
+  systemImage: string
+  tint: Color
+  destructive?: boolean
+  action: () => void
+}) {
+  const textColor = destructive ? "red" as Color : "label" as Color
+  return <Button action={action} buttonStyle="plain">
+    <HStack
+      spacing={12}
+      padding={13}
+      background={roundedBackground(destructive ? "rgba(255,59,48,0.08)" : "rgba(255,255,255,0.62)", SMALL_CARD_RADIUS)}
+    >
+      <PlainCircleIcon systemName={systemImage} color={tint} />
+      <VStack alignment="leading" spacing={3}>
+        <Text font="subheadline" fontWeight="medium" foregroundStyle={textColor}>{title}</Text>
+        <Text font="caption" foregroundStyle="secondaryLabel">{subtitle}</Text>
+      </VStack>
+      <Spacer />
+      <Image
+        systemName={destructive ? "exclamationmark.triangle.fill" : "chevron.right"}
+        font={13}
+        fontWeight="semibold"
+        foregroundStyle={destructive ? "red" : "tertiaryLabel"}
+      />
+    </HStack>
+  </Button>
+}
+
+function SettingsPage({
+  cards,
+  onExport,
+  onRestore,
+  onReset,
+}: {
+  cards: DayCard[]
+  onExport: () => void
+  onRestore: () => void
+  onReset: () => void
+}) {
+  const summary = summarizeDayCards(cards)
+  return <VStack alignment="leading" spacing={14}>
+    <VStack
+      alignment="leading"
+      spacing={5}
+      padding={18}
+      background={roundedBackground("rgba(255,244,238,0.96)")}
+      shadow={cardShadow()}
+    >
+      <Text font="title3" fontWeight="medium">设置</Text>
+      <Text font="subheadline" foregroundStyle="secondaryLabel">管理数据、备份与计数规则</Text>
+    </VStack>
+
+    <VStack
+      alignment="leading"
+      spacing={10}
+      padding={16}
+      background={roundedBackground("rgba(255,255,255,0.56)")}
+      shadow={cardShadow()}
+    >
+      <Text font="headline" fontWeight="medium">数据概览</Text>
+      <HStack spacing={8}>
+        <SummaryPill title="记录天数" value={summary.recordDays} />
+        <SummaryPill title="计数周期" value={summary.cycleCount} />
+        <SummaryPill title="有效胎动" value={summary.effectiveTotal} />
+      </HStack>
+    </VStack>
+
+    <VStack
+      alignment="leading"
+      spacing={10}
+      padding={16}
+      background={roundedBackground("rgba(255,255,255,0.56)")}
+      shadow={cardShadow()}
+    >
+      <Text font="headline" fontWeight="medium">数据管理</Text>
+      <SettingsActionRow title="导出备份" subtitle="保存当前胎动数据 JSON 文件" systemImage="square.and.arrow.up" tint="systemBlue" action={onExport} />
+      <SettingsActionRow title="从备份恢复" subtitle="选择 JSON 备份；恢复前会自动安全备份" systemImage="arrow.clockwise.icloud" tint="systemGreen" action={onRestore} />
+      <SettingsActionRow title="重置全部数据" subtitle="清空当前周期和全部历史记录，不能撤销" systemImage="trash.fill" tint="red" destructive action={onReset} />
+    </VStack>
+
+    <VStack
+      alignment="leading"
+      spacing={8}
+      padding={16}
+      background={roundedBackground("rgba(255,255,255,0.56)")}
+      shadow={cardShadow()}
+    >
+      <Text font="headline" fontWeight="medium">计数规则</Text>
+      <Text font="subheadline" foregroundStyle="secondaryLabel">• 1 小时为一个计数周期</Text>
+      <Text font="subheadline" foregroundStyle="secondaryLabel">• 5 分钟内连续点击计为子胎动</Text>
+      <Text font="subheadline" foregroundStyle="secondaryLabel">• 推算 = 有效胎动 / 计数小时 × 12</Text>
+      <Text font="subheadline" foregroundStyle="secondaryLabel">• 手动提前结束的周期不参与普通统计</Text>
+    </VStack>
+  </VStack>
+}
+
 
 function MainPage() {
   const dismiss = Navigation.useDismiss()
@@ -203,50 +407,80 @@ function MainPage() {
 
   const cards = buildDayCards(state)
 
-  return <NavigationStack>
-    <ScrollView
-      onAppear={() => refresh()}
-      navigationTitle="胎动记录"
-      navigationBarTitleDisplayMode="inline"
-      toolbar={{
-        cancellationAction: <Button title="关闭" action={dismiss} />,
-        primaryAction: [
-          <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
-          <Button title="导出" action={() => { void handleExport() }} />,
-          <Button title="恢复" action={() => setConfirmAction("restore")} />,
-        ],
-        destructiveAction: <Button title="重置" role="destructive" action={() => setConfirmAction("reset")} />,
-      }}
-      confirmationDialog={{
-        title: confirmAction === "restore" ? "从备份恢复？" : "重置胎动数据？",
-        isPresented: confirmAction !== null,
-        onChanged: isPresented => { if (!isPresented) setConfirmAction(null) },
-        message: <Text>{confirmAction === "restore" ? "恢复会用备份文件覆盖当前胎动数据。恢复前会自动生成一份安全备份。" : "此操作会清空当前周期和全部历史记录，不能撤销。"}</Text>,
-        actions: <VStack>
-          {confirmAction === "restore"
-            ? <Button title="选择备份并恢复" role="destructive" action={() => { void handleRestore() }} />
-            : <Button title="确认重置" role="destructive" action={() => { void handleReset() }} />}
-          <Button title="取消" role="cancel" action={() => setConfirmAction(null)} />
-        </VStack>,
-      }}
-      toast={{
-        message: toastMessage,
-        isPresented: showToast,
-        onChanged: setShowToast,
-        duration: 2,
-        position: "bottom",
-      }}
-    >
-      <VStack alignment="leading" spacing={14} padding={12}>
-        <Header
-          state={state}
-          onRecord={() => { void handleRecord() }}
-          onCloseCycle={() => { void handleCloseCycle() }}
-        />
-        {cards.length === 0 ? <EmptyState /> : cards.map(card => <DayCardView card={card} nowTs={nowTs} />)}
-      </VStack>
-    </ScrollView>
-  </NavigationStack>
+  return <TabView>
+    <Tab title="记录" systemImage="heart.text.square">
+      <NavigationStack>
+        <ScrollView
+          onAppear={() => refresh()}
+          navigationTitle="胎动记录"
+          navigationBarTitleDisplayMode="inline"
+          toolbar={{
+            cancellationAction: <Button title="关闭" action={dismiss} />,
+            primaryAction: <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
+          }}
+          toast={{
+            message: toastMessage,
+            isPresented: showToast,
+            onChanged: setShowToast,
+            duration: 2,
+            position: "bottom",
+          }}
+        >
+          <VStack alignment="leading" spacing={14} padding={12}>
+            <RecordsPage
+              state={state}
+              cards={cards}
+              nowTs={nowTs}
+              onRecord={() => { void handleRecord() }}
+              onCloseCycle={() => { void handleCloseCycle() }}
+            />
+          </VStack>
+        </ScrollView>
+      </NavigationStack>
+    </Tab>
+
+    <Tab title="设置" systemImage="gearshape">
+      <NavigationStack>
+        <ScrollView
+          onAppear={() => refresh()}
+          navigationTitle="设置"
+          navigationBarTitleDisplayMode="inline"
+          toolbar={{
+            cancellationAction: <Button title="关闭" action={dismiss} />,
+            primaryAction: <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
+          }}
+          confirmationDialog={{
+            title: confirmAction === "restore" ? "从备份恢复？" : "重置胎动数据？",
+            isPresented: confirmAction !== null,
+            onChanged: isPresented => { if (!isPresented) setConfirmAction(null) },
+            message: <Text>{confirmAction === "restore" ? "恢复会用备份文件覆盖当前胎动数据。恢复前会自动生成一份安全备份。" : "此操作会清空当前周期和全部历史记录，不能撤销。"}</Text>,
+            actions: <VStack>
+              {confirmAction === "restore"
+                ? <Button title="选择备份并恢复" role="destructive" action={() => { void handleRestore() }} />
+                : <Button title="确认重置" role="destructive" action={() => { void handleReset() }} />}
+              <Button title="取消" role="cancel" action={() => setConfirmAction(null)} />
+            </VStack>,
+          }}
+          toast={{
+            message: toastMessage,
+            isPresented: showToast,
+            onChanged: setShowToast,
+            duration: 2,
+            position: "bottom",
+          }}
+        >
+          <VStack alignment="leading" spacing={14} padding={12}>
+            <SettingsPage
+              cards={cards}
+              onExport={() => { void handleExport() }}
+              onRestore={() => setConfirmAction("restore")}
+              onReset={() => setConfirmAction("reset")}
+            />
+          </VStack>
+        </ScrollView>
+      </NavigationStack>
+    </Tab>
+  </TabView>
 }
 
 async function run() {
