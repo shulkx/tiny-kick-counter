@@ -1,4 +1,5 @@
-import { Button, HStack, Spacer, Text, VStack, Widget, WidgetFamily } from "scripting"
+import { Button, HStack, Script, Spacer, Text, VStack, Widget, WidgetFamily } from "scripting"
+import { roundedBackground, themeColors, widgetCardRadius } from "./common/theme"
 import { CloseCycleIntent, RecordMovementIntent } from "./app_intents"
 import { archiveExpiredCycleIfNeeded, readState, saveState } from "./common/model"
 import { getTodayCard, selectWidgetRows } from "./common/stats"
@@ -11,15 +12,15 @@ function Summary({ card }: { card: ReturnType<typeof getTodayCard> }) {
   return <VStack alignment="leading" spacing={2} frame={{ maxWidth: "infinity" }}>
     <HStack alignment="top">
       <VStack alignment="leading" spacing={3}>
-        <Text font="headline">今日胎动</Text>
-        <Text font="caption" foregroundStyle="gray">
+        <Text font="headline" foregroundStyle={themeColors.label}>今日胎动</Text>
+        <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>
           {card ? `已计${card.counted_hours}小时 · 有效${card.effective_total}次` : "还没有记录"}
         </Text>
       </VStack>
       <Spacer />
       <VStack alignment="trailing" spacing={0}>
-        <Text font="caption" foregroundStyle="gray">推算</Text>
-        <Text font="title">{estimated}</Text>
+        <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>推算</Text>
+        <Text font="title" foregroundStyle={themeColors.label}>{estimated}</Text>
       </VStack>
     </HStack>
   </VStack>
@@ -31,11 +32,11 @@ function StatusCard({ row, nowTs }: { row?: ReturnType<typeof selectWidgetRows>[
       alignment="leading"
       spacing={4}
       padding={{ horizontal: 10, vertical: 8 }}
-      background={{ style: "#F4F7FB", shape: { type: "rect", cornerRadius: 14 } }}
+      background={roundedBackground(themeColors.widgetNeutralCardBackground, widgetCardRadius)}
       frame={{ maxWidth: "infinity" }}
     >
-      <Text font="caption" foregroundStyle="#2C7BD0">准备开始</Text>
-      <Text font="caption" foregroundStyle="gray">点击下方按钮开始 1 小时计数</Text>
+      <Text font="caption" foregroundStyle={themeColors.widgetAccentText}>准备开始</Text>
+      <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>点击下方按钮开始 1 小时计数</Text>
     </VStack>
   }
 
@@ -48,15 +49,15 @@ function StatusCard({ row, nowTs }: { row?: ReturnType<typeof selectWidgetRows>[
     alignment="leading"
     spacing={5}
     padding={{ horizontal: 10, vertical: 8 }}
-    background={{ style: row.isActive ? "#EAF5FF" : "#F4F7FB", shape: { type: "rect", cornerRadius: 14 } }}
+    background={roundedBackground(row.isActive ? themeColors.widgetActiveCardBackground : themeColors.widgetNeutralCardBackground, widgetCardRadius)}
     frame={{ maxWidth: "infinity" }}
   >
     <HStack>
-      <Text font="caption" foregroundStyle="#2C7BD0">{title}</Text>
+      <Text font="caption" foregroundStyle={themeColors.widgetAccentText}>{title}</Text>
       <Spacer />
-      <Text font="caption" foregroundStyle="#2C7BD0">{trailing}</Text>
+      <Text font="caption" foregroundStyle={themeColors.widgetAccentText}>{trailing}</Text>
     </HStack>
-    <Text font="caption">{time} · 有效{cycle.effective_count}次 · 点击{cycle.total_count}次</Text>
+    <Text font="caption" foregroundStyle={themeColors.label}>{time} · 有效{cycle.effective_count}次 · 点击{cycle.total_count}次</Text>
   </VStack>
 }
 
@@ -70,17 +71,17 @@ function ActionButtons({ hasActive, family }: { hasActive: boolean; family: Widg
     <Button intent={RecordMovementIntent({})}>
       <Text
         font={isLarge ? 18 : 16}
-        foregroundStyle="#0A84FF"
+        foregroundStyle={themeColors.systemBlue}
         frame={{ width: primaryWidth, height: buttonHeight }}
-        background={{ style: "#EAF5FF", shape: { type: "rect", cornerRadius: buttonHeight / 2 } }}
+        background={roundedBackground(themeColors.primaryButtonBackground, buttonHeight / 2)}
       >记录胎动</Text>
     </Button>
     {hasActive ? <Button role="destructive" intent={CloseCycleIntent({})}>
       <Text
         font={isLarge ? 18 : 16}
-        foregroundStyle="#8E8E93"
+        foregroundStyle={themeColors.secondaryLabel}
         frame={{ width: secondaryWidth, height: buttonHeight }}
-        background={{ style: "#F2F2F7", shape: { type: "rect", cornerRadius: buttonHeight / 2 } }}
+        background={roundedBackground(themeColors.secondaryButtonBackground, buttonHeight / 2)}
       >结束</Text>
     </Button> : null}
   </HStack>
@@ -96,7 +97,7 @@ function WidgetView({ state, nowTs }: { state: FetalMovementState; nowTs: number
   const contentPadding = isLarge ? { horizontal: 18, vertical: 18 } : { horizontal: 18, vertical: 12 }
   const contentSpacing = isLarge ? 22 : 9
 
-  return <VStack alignment="leading" spacing={contentSpacing} padding={contentPadding}>
+  return <VStack alignment="leading" spacing={contentSpacing} padding={contentPadding} foregroundStyle={themeColors.label}>
     <Summary card={card} />
     <StatusCard row={primaryRow} nowTs={nowTs} />
     {isLarge ? <Spacer /> : null}
@@ -114,3 +115,4 @@ const nextReload = state.active_cycle
   : undefined
 
 Widget.present(<WidgetView state={state} nowTs={nowTs} />, nextReload ? { policy: "after", date: nextReload } : undefined)
+Script.exit()

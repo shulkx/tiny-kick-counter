@@ -29,31 +29,9 @@ import {
   saveState,
 } from "./common/model"
 import { buildDayCards, summarizeDayCards } from "./common/stats"
+import { cardShadow, roundedBackground, smallCardRadius, themeColors } from "./common/theme"
 import { Cycle, DayCard, FetalMovementState } from "./common/types"
 import { formatDayKey, formatMinuteRemaining, formatTime } from "./utils"
-
-const CARD_RADIUS = 22
-const SMALL_CARD_RADIUS = 16
-const ACTIVE_CYCLE_BACKGROUND = "rgba(240,253,244,0.92)" as Color
-const ACTIVE_STATUS_COLOR = "#166534" as Color
-const ACTIVE_STATUS_DOT_COLOR = "#22C55E" as Color
-const ACTIVE_SUBTITLE_COLOR = "#15803D" as Color
-
-function roundedBackground(style: Color, radius = CARD_RADIUS): { style: Color; shape: { type: "rect"; cornerRadius: number } } {
-  return {
-    style,
-    shape: { type: "rect", cornerRadius: radius },
-  }
-}
-
-function cardShadow() {
-  return {
-    color: "rgba(120,72,56,0.10)" as Color,
-    radius: 12,
-    x: 0,
-    y: 6,
-  }
-}
 
 function loadStateWithLazyArchive(nowTs = Date.now()): FetalMovementState {
   const { state } = readState()
@@ -78,12 +56,13 @@ function RecordsHeroCard({
     alignment="leading"
     spacing={14}
     padding={18}
-    background={roundedBackground("rgba(255,244,238,0.96)")}
+    background={roundedBackground(themeColors.heroCardBackground)}
+    foregroundStyle={themeColors.label}
     shadow={cardShadow()}
   >
     <VStack alignment="leading" spacing={5}>
       <Text font="title3" fontWeight="medium">温柔记录每一次胎动</Text>
-      <Text font="subheadline" foregroundStyle="secondaryLabel">
+      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>
         {activeCycle
           ? `当前周期剩约 ${formatMinuteRemaining(nowTs, activeCycle.scheduled_end_ts)} 分钟 · 已有效 ${activeCycle.effective_count} 次`
           : "点击记录胎动开始 1 小时计数周期"}
@@ -101,10 +80,10 @@ function SummaryPill({ title, value }: { title: string; value: string | number }
     alignment="leading"
     spacing={3}
     padding={11}
-    background={roundedBackground("rgba(255,255,255,0.68)", SMALL_CARD_RADIUS)}
+    background={roundedBackground(themeColors.pillBackground, smallCardRadius)}
   >
-    <Text font="caption" foregroundStyle="secondaryLabel">{title}</Text>
-    <Text font="headline" fontWeight="medium">{value}</Text>
+    <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>{title}</Text>
+    <Text font="headline" fontWeight="medium" foregroundStyle={themeColors.label}>{value}</Text>
   </VStack>
 }
 
@@ -119,20 +98,20 @@ function CycleRow({ cycle, nowTs }: { cycle: Cycle; nowTs: number }) {
     alignment="leading"
     spacing={7}
     padding={13}
-    background={roundedBackground(isActive ? ACTIVE_CYCLE_BACKGROUND : "rgba(255,255,255,0.54)", SMALL_CARD_RADIUS)}
+    background={roundedBackground(isActive ? themeColors.activeCycleBackground : themeColors.pillBackground, smallCardRadius)}
   >
     <HStack>
-      <Text font="subheadline" fontWeight="medium">{isActive ? "当前周期" : "计数周期"}</Text>
+      <Text font="subheadline" fontWeight="medium" foregroundStyle={themeColors.label}>{isActive ? "当前周期" : "计数周期"}</Text>
       <Spacer />
       {isActive ? <HStack spacing={4}>
-        <Text font="caption" foregroundStyle={ACTIVE_STATUS_DOT_COLOR}>●</Text>
-        <Text font="caption" foregroundStyle={ACTIVE_STATUS_COLOR}>{status}</Text>
-      </HStack> : <Text font="caption" foregroundStyle="secondaryLabel">{status}</Text>}
+        <Text font="caption" foregroundStyle={themeColors.activeStatusDot}>●</Text>
+        <Text font="caption" foregroundStyle={themeColors.activeStatusText}>{status}</Text>
+      </HStack> : <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>{status}</Text>}
     </HStack>
-    <Text font="caption" foregroundStyle="secondaryLabel">{timeRange}</Text>
+    <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>{timeRange}</Text>
     <HStack spacing={12}>
-      <Text font="subheadline" fontWeight="medium">有效 {cycle.effective_count} 次</Text>
-      <Text font="subheadline" foregroundStyle="secondaryLabel">点击 {cycle.total_count} 次</Text>
+      <Text font="subheadline" fontWeight="medium" foregroundStyle={themeColors.label}>有效 {cycle.effective_count} 次</Text>
+      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>点击 {cycle.total_count} 次</Text>
     </HStack>
   </VStack>
 }
@@ -143,19 +122,20 @@ function DayCardView({ card, nowTs }: { card: DayCard; nowTs: number }) {
     alignment="leading"
     spacing={14}
     padding={16}
-    background={roundedBackground("rgba(255,250,247,0.86)")}
+    background={roundedBackground(themeColors.cardBackground)}
+    foregroundStyle={themeColors.label}
     shadow={cardShadow()}
   >
     <HStack>
       <VStack alignment="leading" spacing={5}>
         <Text font="headline" fontWeight="medium">{isToday ? `今天 ${card.day_key.slice(5)}` : card.day_key}</Text>
-        <Text font="caption" foregroundStyle={card.has_active_cycle ? ACTIVE_SUBTITLE_COLOR : "secondaryLabel"}>{card.has_active_cycle ? "● 含正在进行周期" : "已完成计数"}</Text>
+        <Text font="caption" foregroundStyle={card.has_active_cycle ? themeColors.activeSubtitle : themeColors.secondaryLabel}>{card.has_active_cycle ? "● 含正在进行周期" : "已完成计数"}</Text>
       </VStack>
       <Spacer />
       <VStack alignment="trailing" spacing={1}>
-        <Text font="caption" foregroundStyle="secondaryLabel">推算</Text>
+        <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>推算</Text>
         <Text font="title" fontWeight="medium">{card.estimated_count} 次</Text>
-        <Text font="caption" foregroundStyle="secondaryLabel">/ 12小时</Text>
+        <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>/ 12小时</Text>
       </VStack>
     </HStack>
     <HStack spacing={8}>
@@ -167,7 +147,7 @@ function DayCardView({ card, nowTs }: { card: DayCard; nowTs: number }) {
     <VStack alignment="leading" spacing={8}>
       {isToday
         ? card.cycles.map(cycle => <CycleRow cycle={cycle} nowTs={nowTs} />)
-        : <Text font="subheadline" foregroundStyle="secondaryLabel">{card.cycles.length} 个周期 · {card.has_active_cycle ? "含进行中周期" : "已完成计数"}</Text>}
+        : <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>{card.cycles.length} 个周期 · {card.has_active_cycle ? "含进行中周期" : "已完成计数"}</Text>}
     </VStack>
   </VStack>
 }
@@ -177,10 +157,11 @@ function EmptyState() {
     alignment="center"
     spacing={8}
     padding={28}
-    background={roundedBackground("rgba(255,244,238,0.82)")}
+    background={roundedBackground(themeColors.emptyStateBackground)}
+    foregroundStyle={themeColors.label}
   >
     <Text font="title3" fontWeight="semibold">还没有胎动记录</Text>
-    <Text font="subheadline" foregroundStyle="secondaryLabel">点击“记录胎动”开始第一个 1 小时计数周期。</Text>
+    <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>点击“记录胎动”开始第一个 1 小时计数周期。</Text>
   </VStack>
 }
 
@@ -235,24 +216,24 @@ function SettingsActionRow({
   destructive?: boolean
   action: () => void
 }) {
-  const textColor = destructive ? "red" as Color : "label" as Color
+  const textColor = destructive ? themeColors.systemRed : themeColors.label
   return <Button action={action} buttonStyle="plain">
     <HStack
       spacing={12}
       padding={13}
-      background={roundedBackground(destructive ? "rgba(255,59,48,0.08)" : "rgba(255,255,255,0.62)", SMALL_CARD_RADIUS)}
+      background={roundedBackground(destructive ? themeColors.destructiveBackground : themeColors.pillBackground, smallCardRadius)}
     >
       <PlainCircleIcon systemName={systemImage} color={tint} />
       <VStack alignment="leading" spacing={3}>
         <Text font="subheadline" fontWeight="medium" foregroundStyle={textColor}>{title}</Text>
-        <Text font="caption" foregroundStyle="secondaryLabel">{subtitle}</Text>
+        <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>{subtitle}</Text>
       </VStack>
       <Spacer />
       <Image
         systemName={destructive ? "exclamationmark.triangle.fill" : "chevron.right"}
         font={13}
         fontWeight="semibold"
-        foregroundStyle={destructive ? "red" : "tertiaryLabel"}
+        foregroundStyle={destructive ? themeColors.systemRed : themeColors.tertiaryLabel}
       />
     </HStack>
   </Button>
@@ -275,18 +256,20 @@ function SettingsPage({
       alignment="leading"
       spacing={5}
       padding={18}
-      background={roundedBackground("rgba(255,244,238,0.96)")}
+      background={roundedBackground(themeColors.heroCardBackground)}
+      foregroundStyle={themeColors.label}
       shadow={cardShadow()}
     >
       <Text font="title3" fontWeight="medium">设置</Text>
-      <Text font="subheadline" foregroundStyle="secondaryLabel">管理数据、备份与计数规则</Text>
+      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>管理数据、备份与计数规则</Text>
     </VStack>
 
     <VStack
       alignment="leading"
       spacing={10}
       padding={16}
-      background={roundedBackground("rgba(255,255,255,0.56)")}
+      background={roundedBackground(themeColors.groupedCardBackground)}
+      foregroundStyle={themeColors.label}
       shadow={cardShadow()}
     >
       <Text font="headline" fontWeight="medium">数据概览</Text>
@@ -301,27 +284,29 @@ function SettingsPage({
       alignment="leading"
       spacing={10}
       padding={16}
-      background={roundedBackground("rgba(255,255,255,0.56)")}
+      background={roundedBackground(themeColors.groupedCardBackground)}
+      foregroundStyle={themeColors.label}
       shadow={cardShadow()}
     >
       <Text font="headline" fontWeight="medium">数据管理</Text>
       <SettingsActionRow title="导出备份" subtitle="保存当前胎动数据 JSON 文件" systemImage="square.and.arrow.up" tint="systemBlue" action={onExport} />
       <SettingsActionRow title="从备份恢复" subtitle="选择 JSON 备份；恢复前会自动安全备份" systemImage="arrow.clockwise.icloud" tint="systemGreen" action={onRestore} />
-      <SettingsActionRow title="重置全部数据" subtitle="清空当前周期和全部历史记录，不能撤销" systemImage="trash.fill" tint="red" destructive action={onReset} />
+      <SettingsActionRow title="重置全部数据" subtitle="清空当前周期和全部历史记录，不能撤销" systemImage="trash.fill" tint={themeColors.systemRed} destructive action={onReset} />
     </VStack>
 
     <VStack
       alignment="leading"
       spacing={8}
       padding={16}
-      background={roundedBackground("rgba(255,255,255,0.56)")}
+      background={roundedBackground(themeColors.groupedCardBackground)}
+      foregroundStyle={themeColors.label}
       shadow={cardShadow()}
     >
       <Text font="headline" fontWeight="medium">计数规则</Text>
-      <Text font="subheadline" foregroundStyle="secondaryLabel">• 1 小时为一个计数周期</Text>
-      <Text font="subheadline" foregroundStyle="secondaryLabel">• 5 分钟内连续点击计为子胎动</Text>
-      <Text font="subheadline" foregroundStyle="secondaryLabel">• 推算 = 有效胎动 / 计数小时 × 12</Text>
-      <Text font="subheadline" foregroundStyle="secondaryLabel">• 手动提前结束的周期不参与普通统计</Text>
+      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>• 1 小时为一个计数周期</Text>
+      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>• 5 分钟内连续点击计为子胎动</Text>
+      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>• 推算 = 有效胎动 / 计数小时 × 12</Text>
+      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>• 手动提前结束的周期不参与普通统计</Text>
     </VStack>
   </VStack>
 }
@@ -433,7 +418,7 @@ function MainPage() {
             position: "bottom",
           }}
         >
-          <VStack alignment="leading" spacing={14} padding={12}>
+          <VStack alignment="leading" spacing={14} padding={12} background={themeColors.pageBackground}>
             <RecordsPage
               state={state}
               cards={cards}
@@ -476,7 +461,7 @@ function MainPage() {
             position: "bottom",
           }}
         >
-          <VStack alignment="leading" spacing={14} padding={12}>
+          <VStack alignment="leading" spacing={14} padding={12} background={themeColors.pageBackground}>
             <SettingsPage
               cards={cards}
               onExport={() => { void handleExport() }}
