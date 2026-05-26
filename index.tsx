@@ -34,6 +34,10 @@ import { formatDayKey, formatMinuteRemaining, formatTime } from "./utils"
 
 const CARD_RADIUS = 22
 const SMALL_CARD_RADIUS = 16
+const ACTIVE_CYCLE_BACKGROUND = "rgba(240,253,244,0.92)" as Color
+const ACTIVE_STATUS_COLOR = "#166534" as Color
+const ACTIVE_STATUS_DOT_COLOR = "#22C55E" as Color
+const ACTIVE_SUBTITLE_COLOR = "#15803D" as Color
 
 function roundedBackground(style: Color, radius = CARD_RADIUS): { style: Color; shape: { type: "rect"; cornerRadius: number } } {
   return {
@@ -115,12 +119,15 @@ function CycleRow({ cycle, nowTs }: { cycle: Cycle; nowTs: number }) {
     alignment="leading"
     spacing={7}
     padding={13}
-    background={roundedBackground(isActive ? "rgba(52,199,89,0.14)" : "rgba(255,255,255,0.54)", SMALL_CARD_RADIUS)}
+    background={roundedBackground(isActive ? ACTIVE_CYCLE_BACKGROUND : "rgba(255,255,255,0.54)", SMALL_CARD_RADIUS)}
   >
     <HStack>
       <Text font="subheadline" fontWeight="medium">{isActive ? "当前周期" : "计数周期"}</Text>
       <Spacer />
-      <Text font="caption" foregroundStyle={isActive ? "green" : "secondaryLabel"}>{status}</Text>
+      {isActive ? <HStack spacing={4}>
+        <Text font="caption" foregroundStyle={ACTIVE_STATUS_DOT_COLOR}>●</Text>
+        <Text font="caption" foregroundStyle={ACTIVE_STATUS_COLOR}>{status}</Text>
+      </HStack> : <Text font="caption" foregroundStyle="secondaryLabel">{status}</Text>}
     </HStack>
     <Text font="caption" foregroundStyle="secondaryLabel">{timeRange}</Text>
     <HStack spacing={12}>
@@ -142,7 +149,7 @@ function DayCardView({ card, nowTs }: { card: DayCard; nowTs: number }) {
     <HStack>
       <VStack alignment="leading" spacing={5}>
         <Text font="headline" fontWeight="medium">{isToday ? `今天 ${card.day_key.slice(5)}` : card.day_key}</Text>
-        <Text font="caption" foregroundStyle={card.has_active_cycle ? "green" : "secondaryLabel"}>{card.has_active_cycle ? "含正在进行周期" : "已完成计数"}</Text>
+        <Text font="caption" foregroundStyle={card.has_active_cycle ? ACTIVE_SUBTITLE_COLOR : "secondaryLabel"}>{card.has_active_cycle ? "● 含正在进行周期" : "已完成计数"}</Text>
       </VStack>
       <Spacer />
       <VStack alignment="trailing" spacing={1}>
