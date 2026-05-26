@@ -1,0 +1,24 @@
+{
+  "runInApp" : true,
+  "author" : null,
+  "entry" : "index.tsx",
+  "intentInputTypes" : [
+
+  ],
+  "remoteResource" : null,
+  "iconImage" : null,
+  "icon" : "heart.fill",
+  "contributors" : [
+
+  ],
+  "version" : "1.0.0",
+  "color" : "systemPink",
+  "description" : "轻量胎动计数器：主页面卡片、小组件按钮和快捷指令入口",
+  "localizedNames" : {
+    "zh" : "胎动计数"
+  },
+  "localizedDescriptions" : {
+    "zh" : "记录 1 小时胎动周期，支持桌面小组件和快捷指令。"
+  },
+  "name" : "Tiny Kick Counter"
+}
