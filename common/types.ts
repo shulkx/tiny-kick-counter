@@ -1,5 +1,3 @@
-export const STORAGE_KEY = "fetal_movement_state"
-export const STORAGE_OPTIONS = { shared: false }
 export const CYCLE_DURATION_MS = 60 * 60 * 1000
 export const EFFECTIVE_WINDOW_MS = 5 * 60 * 1000
 export const FUTURE_TOLERANCE_MS = 2 * 60 * 1000

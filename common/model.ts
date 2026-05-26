@@ -311,4 +311,4 @@ export async function runCommand(command: Command, eventTs: number, source: Sour
   return recordMovement(eventTs, source)
 }
 
-export { createBackup, createBackupFile, defaultState, exportState, migrateStateIfNeeded, parseBackupJson, readBackupFile, readState, restoreFromBackup, restoreFromBackupFile, saveState } from "./storage"
+export { createBackup, createBackupFile, defaultState, exportState, getStateDirectory, getStateFilePath, migrateStateIfNeeded, parseBackupJson, readBackupFile, readState, restoreFromBackup, restoreFromBackupFile, saveState } from "./storage"

@@ -1,4 +1,4 @@
-import { BackupSource, BackupStorage, Cycle, FetalMovementBackup, FetalMovementState, STORAGE_KEY, STORAGE_OPTIONS } from "./types"
+import { BackupSource, BackupStorage, Cycle, FetalMovementBackup, FetalMovementState } from "./types"
 
 export function defaultState(): FetalMovementState {
   return { schema_version: 1, active_cycle: null, completed_cycles: [] }
@@ -48,23 +48,45 @@ export function migrateStateIfNeeded(value: unknown): FetalMovementState {
   }
 }
 
+export function getStateDirectory(): string {
+  return joinPath(FileManager.appGroupDocumentsDirectory, "TinyKickCounter")
+}
+
+export function getStateFilePath(): string {
+  return joinPath(getStateDirectory(), "state.json")
+}
+
+function parseStateJson(raw: string): FetalMovementState {
+  return migrateStateIfNeeded(JSON.parse(raw))
+}
+
 export function readState(): { state: FetalMovementState; warning?: string } {
-  const raw = Storage.get<unknown>(STORAGE_KEY, STORAGE_OPTIONS)
-  if (raw == null) return { state: defaultState() }
+  const filePath = getStateFilePath()
+  if (!FileManager.existsSync(filePath)) return { state: defaultState() }
+
   try {
-    if (typeof raw === "string") {
-      return { state: migrateStateIfNeeded(JSON.parse(raw)) }
-    }
-    return { state: migrateStateIfNeeded(raw) }
+    return { state: parseStateJson(FileManager.readAsStringSync(filePath)) }
   } catch {
     const state = defaultState()
     saveState(state)
-    return { state, warning: "胎动记录数据异常，已重置为空状态。" }
+    return { state, warning: "胎动记录数据文件异常，已重置为空状态。" }
   }
 }
 
 export function saveState(state: FetalMovementState): void {
-  Storage.set(STORAGE_KEY, state, STORAGE_OPTIONS)
+  const directory = getStateDirectory()
+  const filePath = getStateFilePath()
+  const tempPath = joinPath(directory, `state.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`)
+  const json = JSON.stringify(state, null, 2)
+
+  FileManager.createDirectorySync(directory, true)
+  FileManager.writeAsStringSync(tempPath, json)
+  try {
+    FileManager.renameSync(tempPath, filePath)
+  } catch (error) {
+    if (FileManager.existsSync(filePath)) FileManager.removeSync(filePath)
+    FileManager.renameSync(tempPath, filePath)
+  }
 }
 
 export type BackupFileResult = {
