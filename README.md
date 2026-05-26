@@ -60,3 +60,45 @@ scripting-ts project "Tiny Kick Counter" --check
 ```
 
 在当前 iOS shell 环境中，直接运行 `tests/model_test.ts` / `tests/stats_test.ts` 会遇到相对模块解析限制；项目级 check 可以正确解析整个脚本项目。
+
+## 安装
+
+安装包固定地址：
+
+```text
+https://github.com/shulkx/tiny-kick-counter/releases/latest/download/TinyKickCounter.zip
+```
+
+Scripting 远程资源配置使用同一个地址：
+
+```json
+"remoteResource": {
+  "url": "https://github.com/shulkx/tiny-kick-counter/releases/latest/download/TinyKickCounter.zip",
+  "autoUpdateInterval": 86400
+}
+```
+
+发布包只包含运行和使用说明所需文件：`script.json`、入口文件、`README.md`、`SHORTCUTS.md`、`common/` 和 `utils/`。`docs/`、`tests/`、`.agent/`、`.github/`、`plan.md` 等开发文件不会打入 zip。
+
+## 发布
+
+发布前确认 `script.json.version` 已更新，例如：
+
+```json
+"version": "1.0.1"
+```
+
+创建并推送 tag：
+
+```sh
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+GitHub Actions 会自动创建 Release，并上传唯一资产：
+
+```text
+TinyKickCounter.zip
+```
+
+正式版本使用 `vX.Y.Z`；测试版本使用 `vX.Y.Z-beta.N`，测试版本会被标记为 prerelease。Release tag 必须指向 `main` 分支可达的提交。

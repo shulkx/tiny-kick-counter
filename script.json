@@ -1,11 +1,18 @@
 {
   "runInApp" : true,
-  "author" : null,
+  "author" : {
+    "name" : "shulkx",
+    "email" : "forummazing@gmail.com",
+    "homepage" : "https:\/\/github.com\/shulkx"
+  },
   "entry" : "index.tsx",
   "intentInputTypes" : [
 
   ],
-  "remoteResource" : null,
+  "remoteResource" : {
+    "url" : "https:\/\/github.com\/shulkx\/tiny-kick-counter\/releases\/latest\/download\/TinyKickCounter.zip",
+    "autoUpdateInterval" : 86400
+  },
   "iconImage" : null,
   "icon" : "heart.fill",
   "contributors" : [

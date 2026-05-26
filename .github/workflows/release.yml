@@ -1,0 +1,133 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  PACKAGE_FILE: TinyKickCounter.zip
+  RELEASE_BRANCH: main
+  AUTO_UPDATE_INTERVAL: "86400"
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Package & Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate release tag
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release tag: $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+      - name: Verify tag is on release branch
+        run: |
+          git fetch origin "${RELEASE_BRANCH}:refs/remotes/origin/${RELEASE_BRANCH}"
+          TAG_COMMIT=$(git rev-parse "$GITHUB_REF_NAME^{commit}")
+          git merge-base --is-ancestor "$TAG_COMMIT" "origin/${RELEASE_BRANCH}" || {
+            echo "Release tag must point to a commit reachable from ${RELEASE_BRANCH}"
+            exit 1
+          }
+
+      - name: Detect pre-release
+        id: version
+        run: |
+          if [[ "$GITHUB_REF_NAME" =~ - ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate script metadata
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          SCRIPT_VERSION=$(python3 -c "import json; print(json.load(open('script.json'))['version'])")
+          REMOTE_URL=$(python3 -c "import json; print((json.load(open('script.json')).get('remoteResource') or {}).get('url') or '')")
+          UPDATE_INTERVAL=$(python3 -c "import json; print(str((json.load(open('script.json')).get('remoteResource') or {}).get('autoUpdateInterval') or ''))")
+          EXPECTED_URL="https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/${PACKAGE_FILE}"
+
+          echo "Tag version:              ${TAG_VERSION}"
+          echo "script.json version:      ${SCRIPT_VERSION}"
+          echo "Expected remoteResource:  ${EXPECTED_URL}"
+          echo "Actual remoteResource:    ${REMOTE_URL}"
+          echo "Expected update interval: ${AUTO_UPDATE_INTERVAL}"
+          echo "Actual update interval:   ${UPDATE_INTERVAL}"
+
+          if [ "$TAG_VERSION" != "$SCRIPT_VERSION" ]; then
+            echo "Version mismatch: tag is ${TAG_VERSION} but script.json is ${SCRIPT_VERSION}"
+            exit 1
+          fi
+
+          if [ "$REMOTE_URL" != "$EXPECTED_URL" ]; then
+            echo "remoteResource.url must point to the latest release asset"
+            exit 1
+          fi
+
+          if [ "$UPDATE_INTERVAL" != "$AUTO_UPDATE_INTERVAL" ]; then
+            echo "remoteResource.autoUpdateInterval must be ${AUTO_UPDATE_INTERVAL}"
+            exit 1
+          fi
+
+      - name: Prepare package
+        run: |
+          rm -rf dist
+          mkdir -p dist/package
+
+          cp script.json dist/package/
+          cp index.tsx dist/package/
+          cp widget.tsx dist/package/
+          cp intent.tsx dist/package/
+          cp app_intents.tsx dist/package/
+          cp README.md dist/package/
+          cp SHORTCUTS.md dist/package/
+
+          cp -R common dist/package/
+          cp -R utils dist/package/
+
+      - name: Create zip
+        run: |
+          cd dist/package
+          zip -r "../${PACKAGE_FILE}" .
+
+      - name: Validate package contents
+        run: |
+          unzip -l "dist/${PACKAGE_FILE}"
+
+          unzip -l "dist/${PACKAGE_FILE}" | grep -q "script.json" || {
+            echo "script.json missing from package"
+            exit 1
+          }
+
+          unzip -l "dist/${PACKAGE_FILE}" | grep -q "index.tsx" || {
+            echo "index.tsx missing from package"
+            exit 1
+          }
+
+          if unzip -l "dist/${PACKAGE_FILE}" | grep -E "(\.git/|\.github/|node_modules/|\.env|\.agent/|tests/|docs/|plan\.md|\.gitignore)"; then
+            echo "Package contains forbidden files"
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.6.2
+        with:
+          generate_release_notes: true
+          prerelease: ${{ steps.version.outputs.is_prerelease }}
+          files: |
+            dist/${{ env.PACKAGE_FILE }}
