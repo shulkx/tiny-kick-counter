@@ -1,6 +1,6 @@
 import { Intent, Script, Widget } from "scripting"
-import { parseCommandParameter } from "./utils"
-import { runCommand } from "./model"
+import { parseCommandParameter } from "./utils/command"
+import { runCommand } from "./common/model"
 
 async function main() {
   const input = parseCommandParameter(Intent.shortcutParameter)

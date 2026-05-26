@@ -1,8 +1,8 @@
 import { Button, HStack, Spacer, Text, VStack, Widget, WidgetFamily } from "scripting"
 import { CloseCycleIntent, RecordMovementIntent } from "./app_intents"
-import { archiveExpiredCycleIfNeeded, readState, saveState } from "./model"
-import { getTodayCard, selectWidgetRows } from "./stats"
-import { FetalMovementState } from "./types"
+import { archiveExpiredCycleIfNeeded, readState, saveState } from "./common/model"
+import { getTodayCard, selectWidgetRows } from "./common/stats"
+import { FetalMovementState } from "./common/types"
 import { formatMinuteRemaining, formatTime } from "./utils"
 
 function Summary({ card }: { card: ReturnType<typeof getTodayCard> }) {

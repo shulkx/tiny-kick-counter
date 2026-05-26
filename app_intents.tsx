@@ -1,5 +1,5 @@
 import { AppIntentManager, AppIntentProtocol, Widget } from "scripting"
-import { closeCycle, recordMovement } from "./model"
+import { closeCycle, recordMovement } from "./common/model"
 
 export const RecordMovementIntent = AppIntentManager.register({
   name: "RecordMovement",

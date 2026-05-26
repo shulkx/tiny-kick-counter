@@ -1,4 +1,4 @@
-import { recordMovement, closeCycle, readState, saveState, defaultState, resetState, migrateStateIfNeeded } from "../model"
+import { recordMovement, closeCycle, readState, saveState, defaultState, resetState, migrateStateIfNeeded } from "../common/model"
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message)

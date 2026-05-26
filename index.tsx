@@ -22,9 +22,9 @@ import {
   recordMovement,
   resetState,
   saveState,
-} from "./model"
-import { buildDayCards } from "./stats"
-import { Cycle, DayCard, FetalMovementState } from "./types"
+} from "./common/model"
+import { buildDayCards } from "./common/stats"
+import { Cycle, DayCard, FetalMovementState } from "./common/types"
 import { formatMinuteRemaining, formatTime } from "./utils"
 
 function loadStateWithLazyArchive(nowTs = Date.now()): FetalMovementState {

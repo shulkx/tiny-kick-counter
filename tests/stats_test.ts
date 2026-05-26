@@ -1,5 +1,5 @@
-import { FetalMovementState, Cycle } from "../types"
-import { buildDayCards, selectWidgetRows } from "../stats"
+import { FetalMovementState, Cycle } from "../common/types"
+import { buildDayCards, selectWidgetRows } from "../common/stats"
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message)
