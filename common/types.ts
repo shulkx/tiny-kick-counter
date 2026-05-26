@@ -9,6 +9,8 @@ export const ESTIMATE_HOURS = 12
 export type Source = "shortcut" | "widget" | "app" | "unknown"
 export type CloseReason = "expired" | "manual"
 export type Command = "record" | "close_cycle" | "status" | "export" | "reset"
+export type BackupSource = "manual" | "shortcut" | "auto"
+export type BackupStorage = "icloud" | "documents" | "app_group"
 
 export type SubMovement = {
   at: string
@@ -47,6 +49,15 @@ export type FetalMovementState = {
   completed_cycles: Cycle[]
 }
 
+export type FetalMovementBackup = {
+  app: "Tiny Kick Counter"
+  backup_version: 1
+  exported_at: string
+  exported_ts: number
+  source: BackupSource
+  state: FetalMovementState
+}
+
 export type CommandInput = {
   command: Command
   event_ts: number
@@ -69,6 +80,10 @@ export type CommandResult = {
   archived_cycle_id?: string
   warning?: string
   export_json?: string
+  export_file_path?: string
+  export_file_name?: string
+  export_directory?: string
+  export_storage?: BackupStorage
 }
 
 export type DayCard = {

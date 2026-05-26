@@ -1,4 +1,4 @@
-import { Cycle, FetalMovementState, STORAGE_KEY, STORAGE_OPTIONS } from "./types"
+import { BackupSource, BackupStorage, Cycle, FetalMovementBackup, FetalMovementState, STORAGE_KEY, STORAGE_OPTIONS } from "./types"
 
 export function defaultState(): FetalMovementState {
   return { schema_version: 1, active_cycle: null, completed_cycles: [] }
@@ -52,6 +52,89 @@ export function readState(): { state: FetalMovementState; warning?: string } {
 
 export function saveState(state: FetalMovementState): void {
   Storage.set(STORAGE_KEY, state, STORAGE_OPTIONS)
+}
+
+export type BackupFileResult = {
+  backup: FetalMovementBackup
+  json: string
+  file_path: string
+  file_name: string
+  directory: string
+  storage: BackupStorage
+}
+
+function pad(value: number): string {
+  return String(value).padStart(2, "0")
+}
+
+function backupTimestamp(ts: number): string {
+  const date = new Date(ts)
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+}
+
+function joinPath(...parts: string[]): string {
+  return parts
+    .map((part, index) => index === 0 ? part.replace(/\/+$/g, "") : part.replace(/^\/+|\/+$/g, ""))
+    .filter(Boolean)
+    .join("/")
+}
+
+function getBackupDirectoryCandidates(): Array<{ directory: string; storage: BackupStorage }> {
+  const candidates: Array<{ directory: string; storage: BackupStorage }> = []
+  if (FileManager.isiCloudEnabled) {
+    candidates.push({
+      directory: joinPath(FileManager.iCloudDocumentsDirectory, "TinyKickCounter", "backups"),
+      storage: "icloud",
+    })
+  }
+  candidates.push({
+    directory: joinPath(FileManager.documentsDirectory, "TinyKickCounter", "backups"),
+    storage: "documents",
+  })
+  candidates.push({
+    directory: joinPath(FileManager.appGroupDocumentsDirectory, "TinyKickCounter", "backups"),
+    storage: "app_group",
+  })
+  return candidates
+}
+
+export function createBackup(source: BackupSource, exportedTs = Date.now(), state = readState().state): FetalMovementBackup {
+  return {
+    app: "Tiny Kick Counter",
+    backup_version: 1,
+    exported_at: new Date(exportedTs).toISOString(),
+    exported_ts: exportedTs,
+    source,
+    state,
+  }
+}
+
+export async function createBackupFile(source: BackupSource, exportedTs = Date.now(), state = readState().state): Promise<BackupFileResult> {
+  const backup = createBackup(source, exportedTs, state)
+  const json = JSON.stringify(backup, null, 2)
+  const fileName = `tiny-kick-counter-backup-${backupTimestamp(exportedTs)}.json`
+  let lastError: unknown
+
+  for (const candidate of getBackupDirectoryCandidates()) {
+    try {
+      await FileManager.createDirectory(candidate.directory, true)
+      const filePath = joinPath(candidate.directory, fileName)
+      await FileManager.writeAsString(filePath, json)
+      return {
+        backup,
+        json,
+        file_path: filePath,
+        file_name: fileName,
+        directory: candidate.directory,
+        storage: candidate.storage,
+      }
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  const message = lastError instanceof Error ? lastError.message : String(lastError ?? "未知错误")
+  throw new Error(`写入备份文件失败：${message}`)
 }
 
 export function exportState(): string {

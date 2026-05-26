@@ -17,7 +17,7 @@ import {
 import {
   archiveExpiredCycleIfNeeded,
   closeCycle,
-  exportState,
+  createBackupFile,
   readState,
   recordMovement,
   resetState,
@@ -162,9 +162,15 @@ function MainPage() {
     requestWidgetReload()
   }
 
-  function handleExport() {
-    console.log(exportState())
-    refresh("完整 JSON 已输出到控制台，包含手动无效周期。")
+  async function handleExport() {
+    try {
+      const backup = await createBackupFile("manual")
+      console.log(backup.json)
+      refresh(`已导出备份：${backup.file_name}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      refresh(`导出失败：${message}`)
+    }
   }
 
   async function handleReset() {
@@ -185,7 +191,7 @@ function MainPage() {
         cancellationAction: <Button title="关闭" action={dismiss} />,
         primaryAction: [
           <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
-          <Button title="导出" action={handleExport} />,
+          <Button title="导出" action={() => { void handleExport() }} />,
         ],
         destructiveAction: <Button title="重置" role="destructive" action={() => setShowResetConfirm(true)} />,
       }}

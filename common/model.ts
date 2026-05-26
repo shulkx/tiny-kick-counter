@@ -11,7 +11,7 @@ import {
 import { formatDayKey, formatLocal, formatTime } from "../utils/date"
 import { isFutureRejected } from "../utils/command"
 import { cancelPendingCycleEndNotifications, scheduleCycleEndNotification } from "../utils/notifications"
-import { defaultState, exportState, readState, saveState } from "./storage"
+import { createBackupFile, defaultState, exportState, readState, saveState } from "./storage"
 
 export async function resetState(): Promise<CommandResult> {
   const nowTs = Date.now()
@@ -232,14 +232,28 @@ export async function runCommand(command: Command, eventTs: number, source: Sour
     }
     const archived = archiveExpiredCycleIfNeeded(state, eventTs)
     if (archived) saveState(state)
-    return result("export", source, eventTs, "export", "导出胎动数据", archived ? "上个周期已自动结束。已导出胎动数据。" : "已导出胎动数据。", {
-      export_json: JSON.stringify(state, null, 2),
-      archived_cycle_id: archived?.cycle_id,
-      warning,
-    })
+    try {
+      const backup = await createBackupFile("shortcut", eventTs, state)
+      return result("export", source, eventTs, "export", "导出胎动数据", archived ? `上个周期已自动结束。已导出备份：${backup.file_name}` : `已导出备份：${backup.file_name}`, {
+        export_json: backup.json,
+        export_file_path: backup.file_path,
+        export_file_name: backup.file_name,
+        export_directory: backup.directory,
+        export_storage: backup.storage,
+        archived_cycle_id: archived?.cycle_id,
+        warning,
+      })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      return result("export", source, eventTs, "export_failed", "导出胎动数据", "生成备份文件失败，请稍后重试。", {
+        export_json: JSON.stringify(state, null, 2),
+        archived_cycle_id: archived?.cycle_id,
+        warning: warning ? `${warning} ${errorMessage}` : errorMessage,
+      })
+    }
   }
   if (command === "reset") return resetState()
   return recordMovement(eventTs, source)
 }
 
-export { defaultState, exportState, migrateStateIfNeeded, readState, saveState } from "./storage"
+export { createBackup, createBackupFile, defaultState, exportState, migrateStateIfNeeded, readState, saveState } from "./storage"

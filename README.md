@@ -39,6 +39,10 @@ Tiny Kick Counter 是轻量胎动计数器的 Scripting 版本。它保留 Apple
 {"command":"close_cycle","event_ts":1779733304000,"source":"shortcut"}
 ```
 
+## 文档
+
+- 数据存储规划：`docs/data-storage-plan.md`
+
 ## 已知限制
 
 - Widget 刷新时机由系统控制，无法保证秒级或严格 5 分钟刷新。
