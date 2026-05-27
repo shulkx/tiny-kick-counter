@@ -190,18 +190,10 @@ export async function closeCycle(eventTs: number, source: Source): Promise<Comma
   }
 
   const cycle = state.active_cycle
-  const lastRecordTs = getLastRecordTs(cycle)
-  if (eventTs < cycle.started_ts) {
-    return result("close_cycle", source, eventTs, "close_time_before_start_rejected", "结束胎动周期", "结束时间早于周期开始时间，已取消。", { warning })
-  }
-  if (eventTs < lastRecordTs) {
-    return result("close_cycle", source, eventTs, "close_time_before_last_record_rejected", "结束胎动周期", "结束时间早于上一条记录，已取消。", { warning })
-  }
-
-  archiveActiveCycle(state, "manual", eventTs)
+  state.active_cycle = null
   saveState(state)
   await cancelPendingCycleEndNotifications()
-  return result("close_cycle", source, eventTs, "closed", "结束胎动周期", `当前胎动周期已提前结束，并标记为无效。有效 ${cycle.effective_count} 次，点击 ${cycle.total_count} 次。`, {
+  return result("close_cycle", source, eventTs, "discarded", "停止本次记录", "已停止本次记录，数据未保存。", {
     cycle_id: cycle.cycle_id,
     day_key: cycle.day_key,
     effective_count: cycle.effective_count,

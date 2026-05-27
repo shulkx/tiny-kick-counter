@@ -29,22 +29,33 @@ async function run() {
     assert(rejected.status === "out_of_order_rejected", "out-of-order record is rejected")
 
     const closed = await closeCycle(base + 10 * 60 * 1000, "app")
-    assert(closed.status === "closed", "manual close succeeds")
-    const state = readState().state
-    assert(state.active_cycle === null, "manual close clears active cycle")
-    assert(state.completed_cycles.length === 1, "manual close archives cycle")
-    assert(state.completed_cycles[0].is_valid === false, "manual close marks invalid")
+    assert(closed.status === "discarded", "manual close discards cycle")
+    const stateAfterClose = readState().state
+    assert(stateAfterClose.active_cycle === null, "manual close clears active cycle")
+    assert(stateAfterClose.completed_cycles.length === 0, "manual close does not archive cycle")
 
+    const fakeCycle = {
+      cycle_id: "fake",
+      day_key: "2026-05-26",
+      started_at: "2026-05-26 09:00:00",
+      started_ts: base,
+      scheduled_end_at: "2026-05-26 10:00:00",
+      scheduled_end_ts: base + 3600000,
+      effective_count: 1,
+      total_count: 1,
+      effective_movements: [],
+      close_reason: "manual" as const,
+      is_valid: false,
+    }
     const migrated = migrateStateIfNeeded({
       schema_version: 1,
       active_cycle: null,
       completed_cycles: [
-        { at: "2026-05-26 09:50:05", ts: base },
-        readState().state.completed_cycles[0],
+        { at: "2026-05-26 09:50:05", ts: base } as any,
+        fakeCycle,
       ],
     })
-    assert(migrated.completed_cycles.length === 1, "migration filters malformed completed cycles")
-    assert(migrated.completed_cycles[0].cycle_id !== undefined, "migration keeps valid completed cycle")
+    assert(migrated.completed_cycles.length === 0, "migration filters invalid and malformed cycles")
 
     console.log("model_test passed")
   } finally {
