@@ -17,6 +17,7 @@ import {
   buildDayCards,
   closeCycle,
   createBackupFile,
+  deleteCycle,
   loadStateWithLazyArchive,
   recordMovement,
   resetState,
@@ -25,6 +26,7 @@ import {
 } from "./common/model"
 import type { FetalMovementState } from "./common/model"
 import { formatDayKey } from "./utils"
+import { HistoryPage } from "./pages/history"
 import { RecordsPage } from "./pages/records"
 import { SettingsPage } from "./pages/settings"
 
@@ -115,6 +117,20 @@ function MainPage() {
     }
   }
 
+  async function handleDeleteCycle(cycleId: string) {
+    const ok = await Dialog.confirm({
+      title: "确认删除此周期？",
+      message: "删除后不可恢复。",
+      cancelLabel: "取消",
+      confirmLabel: "删除",
+    })
+    if (ok) {
+      deleteCycle(cycleId)
+      refresh("已删除该周期。")
+      Widget.reloadAll()
+    }
+  }
+
   async function handleReset() {
     const result = await resetState()
     setConfirmAction(null)
@@ -123,6 +139,7 @@ function MainPage() {
   }
 
   const cards = buildDayCards(state)
+  const allCards = buildDayCards(state, Infinity)
   const todayKey = formatDayKey(nowTs)
   const todayCards = cards.filter(card => card.day_key === todayKey)
 
@@ -165,6 +182,32 @@ function MainPage() {
               onCloseCycle={() => setConfirmAction("close_cycle")}
             />
           </VStack>
+        </ScrollView>
+      </NavigationStack>
+    </Tab>
+
+    <Tab title="历史" systemImage="clock.arrow.circlepath">
+      <NavigationStack>
+        <ScrollView
+          onAppear={() => refresh()}
+          navigationTitle="历史记录"
+          navigationBarTitleDisplayMode="inline"
+          toolbar={{
+            cancellationAction: <Button title="关闭" action={dismiss} />,
+            primaryAction: <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
+          }}
+          toast={{
+            message: toastMessage,
+            isPresented: showToast,
+            onChanged: setShowToast,
+            duration: 2,
+            position: "bottom",
+          }}
+        >
+          <HistoryPage
+            cards={allCards}
+            onDeleteCycle={(cycleId) => { void handleDeleteCycle(cycleId) }}
+          />
         </ScrollView>
       </NavigationStack>
     </Tab>
