@@ -14,16 +14,16 @@ import {
   useState,
 } from "scripting"
 import {
+  buildDayCards,
   closeCycle,
   createBackupFile,
   loadStateWithLazyArchive,
   recordMovement,
   resetState,
   restoreBackupFromFile,
+  themeColors,
 } from "./common/model"
-import { buildDayCards } from "./common/stats"
-import { themeColors } from "./common/theme"
-import { FetalMovementState } from "./common/types"
+import type { FetalMovementState } from "./common/model"
 import { RecordsPage } from "./pages/records"
 import { SettingsPage } from "./pages/settings"
 

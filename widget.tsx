@@ -1,9 +1,14 @@
 import { Button, HStack, Script, Spacer, Text, VStack, Widget, WidgetFamily } from "scripting"
-import { roundedBackground, themeColors, widgetCardRadius } from "./common/theme"
 import { CloseCycleIntent, RecordMovementIntent } from "./app_intents"
-import { loadStateWithLazyArchive } from "./common/model"
-import { getTodayCard, selectWidgetRows } from "./common/stats"
-import { FetalMovementState } from "./common/types"
+import {
+  getTodayCard,
+  loadStateWithLazyArchive,
+  roundedBackground,
+  selectWidgetRows,
+  themeColors,
+  widgetCardRadius,
+} from "./common/model"
+import type { FetalMovementState } from "./common/model"
 import { formatMinuteRemaining, formatTime } from "./utils"
 
 function Summary({ card }: { card: ReturnType<typeof getTodayCard> }) {

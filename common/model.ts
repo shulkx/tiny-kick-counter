@@ -14,6 +14,9 @@ import { cancelPendingCycleEndNotifications, scheduleCycleEndNotification } from
 import { createBackupFile, defaultState, parseBackupJson, readState, restoreFromBackup, restoreFromBackupFile, saveState } from "./storage"
 
 export { createBackupFile }
+export { buildDayCards, getTodayCard, selectWidgetRows, summarizeDayCards } from "./stats"
+export { roundedBackground, themeColors, widgetCardRadius } from "./theme"
+export type { FetalMovementState } from "./types"
 
 export async function resetState(): Promise<CommandResult> {
   const nowTs = Date.now()
