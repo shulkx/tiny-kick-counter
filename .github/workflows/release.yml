@@ -98,6 +98,7 @@ jobs:
           cp SHORTCUTS.md dist/package/
 
           cp -R common dist/package/
+          cp -R pages dist/package/
           cp -R utils dist/package/
 
       - name: Create zip
