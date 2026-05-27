@@ -287,20 +287,9 @@ git commit -m "feat: remove close-cycle button from widget"
 **Files:**
 - Modify: `utils/date.ts`
 
-- [ ] **Step 1: Add `formatChineseDate` function**
+- [ ] **Step 1: Add `formatChineseDateFromDayKey` for converting day_key strings**
 
-In `utils/date.ts`, add:
-
-```ts
-export function formatChineseDate(ts: number): string {
-  const d = new Date(ts)
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
-}
-```
-
-- [ ] **Step 2: Add `formatChineseDateFromDayKey` for converting day_key strings**
-
-The history page and today card need to format a `day_key` string (e.g. "2026-05-28") to Chinese date. Add:
+The history page and today card need to format a `day_key` string (e.g. "2026-05-28") to Chinese date. Add in `utils/date.ts`:
 
 ```ts
 export function formatChineseDateFromDayKey(dayKey: string): string {
@@ -309,11 +298,11 @@ export function formatChineseDateFromDayKey(dayKey: string): string {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
 git add utils/date.ts
-git commit -m "feat: add Chinese date format helpers"
+git commit -m "feat: add Chinese date format helper"
 ```
 
 ---
@@ -387,9 +376,11 @@ The `isToday` variable and its conditional subtitle are no longer needed since o
 </Text>
 ```
 
-Add import: `import { formatChineseDateFromDayKey, formatDayKey, formatMinuteRemaining, formatTime } from "../utils"`
+Update imports in `pages/records.tsx` — remove `formatDayKey` (no longer needed after removing `isToday` check), add `formatChineseDateFromDayKey`:
 
-Note: `formatDayKey` import can be removed from `pages/records.tsx` since `isToday` check is removed. `DayCardView` is only used by the main page now (the history page has its own `HistoryCycleRow` component). Keep the component generic: it still accepts any `DayCard` and displays the Chinese date.
+```ts
+import { formatChineseDateFromDayKey, formatMinuteRemaining, formatTime } from "../utils"
+```
 
 - [ ] **Step 3: Commit**
 
@@ -607,7 +598,7 @@ import { HistoryPage } from "./pages/history"
 import { deleteCycle } from "./common/model"
 ```
 
-Also add `Dialog` if not already available globally (check — `Dialog.confirm` is used in Epical without import, likely a global).
+(`Dialog` is a global in the scripting framework — no import needed, confirmed working in prototype.)
 
 - [ ] **Step 2: Add delete handler function**
 
@@ -653,7 +644,7 @@ Insert a new `<Tab>` block after the 记录 tab closing `</Tab>` and before the 
       }}
     >
       <HistoryPage
-        cards={cards}
+        cards={allCards}
         onDeleteCycle={(cycleId) => { void handleDeleteCycle(cycleId) }}
       />
     </ScrollView>
@@ -661,7 +652,13 @@ Insert a new `<Tab>` block after the 记录 tab closing `</Tab>` and before the 
 </Tab>
 ```
 
-Note: `cards` (all days, not filtered) is passed to HistoryPage. `todayCards` (filtered) is passed to RecordsPage.
+**Important:** `cards` from `buildDayCards(state)` is limited to 30 days by `RECENT_DAY_LIMIT`. For the history page, we need all records. Add a separate call in `MainPage`:
+
+```ts
+const allCards = buildDayCards(state, Infinity)
+```
+
+Pass `allCards` to `HistoryPage` and keep `cards` (30-day limit) for the settings page data overview. Pass `todayCards` (filtered from `cards`) to `RecordsPage`.
 
 - [ ] **Step 4: Commit**
 
