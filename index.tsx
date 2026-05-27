@@ -33,7 +33,7 @@ function MainPage() {
   const [nowTs, setNowTs] = useState(Date.now())
   const [toastMessage, setToastMessage] = useState("")
   const [showToast, setShowToast] = useState(false)
-  const [confirmAction, setConfirmAction] = useState<"reset" | "restore" | null>(null)
+  const [confirmAction, setConfirmAction] = useState<"reset" | "restore" | "close_cycle" | null>(null)
   const [isRecording, setIsRecording] = useState(false)
 
   function refresh(message?: string) {
@@ -70,7 +70,8 @@ function MainPage() {
     }
   }
 
-  async function handleCloseCycle() {
+  async function handleConfirmedCloseCycle() {
+    setConfirmAction(null)
     if (isRecording) return
     setIsRecording(true)
     try {
@@ -134,6 +135,16 @@ function MainPage() {
             cancellationAction: <Button title="关闭" action={dismiss} />,
             primaryAction: <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
           }}
+          confirmationDialog={{
+            title: "停止本次记录？",
+            isPresented: confirmAction === "close_cycle",
+            onChanged: isPresented => { if (!isPresented) setConfirmAction(null) },
+            message: <Text>系统将不会保存这次的数据</Text>,
+            actions: <VStack>
+              <Button title="确认停止" role="destructive" action={() => { void handleConfirmedCloseCycle() }} />
+              <Button title="取消" role="cancel" action={() => setConfirmAction(null)} />
+            </VStack>,
+          }}
           toast={{
             message: toastMessage,
             isPresented: showToast,
@@ -148,7 +159,7 @@ function MainPage() {
               cards={cards}
               nowTs={nowTs}
               onRecord={() => { void handleRecord() }}
-              onCloseCycle={() => { void handleCloseCycle() }}
+              onCloseCycle={() => setConfirmAction("close_cycle")}
             />
           </VStack>
         </ScrollView>
@@ -167,7 +178,7 @@ function MainPage() {
           }}
           confirmationDialog={{
             title: confirmAction === "restore" ? "从备份恢复？" : "重置胎动数据？",
-            isPresented: confirmAction !== null,
+            isPresented: confirmAction === "restore" || confirmAction === "reset",
             onChanged: isPresented => { if (!isPresented) setConfirmAction(null) },
             message: <Text>{confirmAction === "restore" ? "恢复会用备份文件覆盖当前胎动数据。恢复前会自动生成一份安全备份。" : "此操作会清空当前周期和全部历史记录，不能撤销。"}</Text>,
             actions: <VStack>
