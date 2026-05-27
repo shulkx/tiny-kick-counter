@@ -11,7 +11,7 @@ import {
 import { formatDayKey, formatLocal, formatTime } from "../utils/date"
 import { isFutureRejected } from "../utils/command"
 import { cancelPendingCycleEndNotifications, scheduleCycleEndNotification } from "../utils/notifications"
-import { createBackupFile, defaultState, exportState, parseBackupJson, readState, restoreFromBackup, restoreFromBackupFile, saveState } from "./storage"
+import { createBackupFile, defaultState, parseBackupJson, readState, restoreFromBackup, restoreFromBackupFile, saveState } from "./storage"
 
 export async function resetState(): Promise<CommandResult> {
   const nowTs = Date.now()
@@ -98,6 +98,13 @@ export function archiveExpiredCycleIfNeeded(state: FetalMovementState, nowTs: nu
   if (!state.active_cycle) return null
   if (nowTs < state.active_cycle.scheduled_end_ts) return null
   return archiveActiveCycle(state, "expired", state.active_cycle.scheduled_end_ts)
+}
+
+export function loadStateWithLazyArchive(nowTs = Date.now()): FetalMovementState {
+  const { state } = readState()
+  const archived = archiveExpiredCycleIfNeeded(state, nowTs)
+  if (archived) saveState(state)
+  return state
 }
 
 export async function recordMovement(eventTs: number, source: Source): Promise<CommandResult> {
@@ -310,5 +317,3 @@ export async function runCommand(command: Command, eventTs: number, source: Sour
   if (command === "reset") return resetState()
   return recordMovement(eventTs, source)
 }
-
-export { createBackup, createBackupFile, defaultState, exportState, getStateDirectory, getStateFilePath, migrateStateIfNeeded, parseBackupJson, readBackupFile, readState, restoreFromBackup, restoreFromBackupFile, saveState } from "./storage"

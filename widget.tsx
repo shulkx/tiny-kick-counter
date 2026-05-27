@@ -1,7 +1,7 @@
 import { Button, HStack, Script, Spacer, Text, VStack, Widget, WidgetFamily } from "scripting"
 import { roundedBackground, themeColors, widgetCardRadius } from "./common/theme"
 import { CloseCycleIntent, RecordMovementIntent } from "./app_intents"
-import { archiveExpiredCycleIfNeeded, readState, saveState } from "./common/model"
+import { loadStateWithLazyArchive } from "./common/model"
 import { getTodayCard, selectWidgetRows } from "./common/stats"
 import { FetalMovementState } from "./common/types"
 import { formatMinuteRemaining, formatTime } from "./utils"
@@ -106,9 +106,7 @@ function WidgetView({ state, nowTs }: { state: FetalMovementState; nowTs: number
 }
 
 const nowTs = Date.now()
-const { state } = readState()
-const archived = archiveExpiredCycleIfNeeded(state, nowTs)
-if (archived) saveState(state)
+const state = loadStateWithLazyArchive(nowTs)
 
 const nextReload = state.active_cycle
   ? new Date(Math.min(nowTs + 5 * 60 * 1000, state.active_cycle.scheduled_end_ts + 1000))
