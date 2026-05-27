@@ -202,6 +202,19 @@ export async function closeCycle(eventTs: number, source: Source): Promise<Comma
   })
 }
 
+export function deleteCycle(cycleId: string): CommandResult {
+  const nowTs = Date.now()
+  const { state } = readState()
+  const before = state.completed_cycles.length
+  state.completed_cycles = state.completed_cycles.filter(c => c.cycle_id !== cycleId)
+  const removed = before - state.completed_cycles.length
+  saveState(state)
+  if (removed === 0) {
+    return result("close_cycle", "app", nowTs, "not_found", "删除周期", "未找到该周期。")
+  }
+  return result("close_cycle", "app", nowTs, "deleted", "删除周期", "已删除该周期。")
+}
+
 export async function status(eventTs: number, source: Source): Promise<CommandResult> {
   const nowTs = Date.now()
   const { state, warning } = readState()
