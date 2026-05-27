@@ -11,7 +11,7 @@ import {
 import { formatDayKey, formatLocal, formatTime } from "../utils/date"
 import { isFutureRejected } from "../utils/command"
 import { cancelPendingCycleEndNotifications, scheduleCycleEndNotification } from "../utils/notifications"
-import { createBackupFile, defaultState, exportState, parseBackupJson, readState, restoreFromBackup, restoreFromBackupFile, saveState } from "./storage"
+import { createBackupFile, defaultState, parseBackupJson, readState, restoreFromBackup, restoreFromBackupFile, saveState } from "./storage"
 
 export async function resetState(): Promise<CommandResult> {
   const nowTs = Date.now()
@@ -317,5 +317,3 @@ export async function runCommand(command: Command, eventTs: number, source: Sour
   if (command === "reset") return resetState()
   return recordMovement(eventTs, source)
 }
-
-export { createBackup, createBackupFile, defaultState, exportState, getStateDirectory, getStateFilePath, migrateStateIfNeeded, parseBackupJson, readBackupFile, readState, restoreFromBackup, restoreFromBackupFile, saveState } from "./storage"
