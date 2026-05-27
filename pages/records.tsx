@@ -8,7 +8,7 @@ import {
 } from "scripting"
 import { cardShadow, roundedBackground, smallCardRadius, themeColors } from "../common/theme"
 import { Cycle, DayCard, FetalMovementState } from "../common/types"
-import { formatDayKey, formatMinuteRemaining, formatTime } from "../utils"
+import { formatChineseDateFromDayKey, formatMinuteRemaining, formatTime } from "../utils"
 
 export function SummaryPill({ title, value }: { title: string; value: string | number }) {
   return <VStack
@@ -87,7 +87,6 @@ function CycleRow({ cycle, nowTs }: { cycle: Cycle; nowTs: number }) {
 }
 
 function DayCardView({ card, nowTs }: { card: DayCard; nowTs: number }) {
-  const isToday = card.day_key === formatDayKey(nowTs)
   return <VStack
     alignment="leading"
     spacing={14}
@@ -98,8 +97,10 @@ function DayCardView({ card, nowTs }: { card: DayCard; nowTs: number }) {
   >
     <HStack>
       <VStack alignment="leading" spacing={5}>
-        <Text font="headline" fontWeight="medium">{isToday ? `今天 ${card.day_key.slice(5)}` : card.day_key}</Text>
-        <Text font="caption" foregroundStyle={card.has_active_cycle ? themeColors.activeSubtitle : themeColors.secondaryLabel}>{card.has_active_cycle ? "● 含正在进行周期" : "已完成计数"}</Text>
+        <Text font="headline" fontWeight="medium">{formatChineseDateFromDayKey(card.day_key)}</Text>
+        <Text font="caption" foregroundStyle={card.has_active_cycle ? themeColors.activeSubtitle : themeColors.secondaryLabel}>
+          {card.has_active_cycle ? "● 含正在进行周期" : "已完成计数"}
+        </Text>
       </VStack>
       <Spacer />
       <VStack alignment="trailing" spacing={1}>
@@ -115,9 +116,7 @@ function DayCardView({ card, nowTs }: { card: DayCard; nowTs: number }) {
     </HStack>
     <Divider />
     <VStack alignment="leading" spacing={8}>
-      {isToday
-        ? card.cycles.map(cycle => <CycleRow cycle={cycle} nowTs={nowTs} />)
-        : <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>{card.cycles.length} 个周期 · {card.has_active_cycle ? "含进行中周期" : "已完成计数"}</Text>}
+      {card.cycles.map(cycle => <CycleRow cycle={cycle} nowTs={nowTs} />)}
     </VStack>
   </VStack>
 }
@@ -150,7 +149,7 @@ export function RecordsPage({
 }) {
   return <VStack alignment="leading" spacing={14}>
     <RecordsHeroCard state={state} nowTs={nowTs} onRecord={onRecord} onCloseCycle={onCloseCycle} />
-    <Text font="headline" fontWeight="medium">每日记录</Text>
+    <Text font="headline" fontWeight="medium">今日记录</Text>
     {cards.length === 0 ? <EmptyState /> : cards.map(card => <DayCardView card={card} nowTs={nowTs} />)}
   </VStack>
 }

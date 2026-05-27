@@ -24,6 +24,7 @@ import {
   themeColors,
 } from "./common/model"
 import type { FetalMovementState } from "./common/model"
+import { formatDayKey } from "./utils"
 import { RecordsPage } from "./pages/records"
 import { SettingsPage } from "./pages/settings"
 
@@ -122,6 +123,8 @@ function MainPage() {
   }
 
   const cards = buildDayCards(state)
+  const todayKey = formatDayKey(nowTs)
+  const todayCards = cards.filter(card => card.day_key === todayKey)
 
   return <VStack frame={{ maxWidth: "infinity", maxHeight: "infinity" }} background={themeColors.pageBackground}>
     <TabView>
@@ -156,7 +159,7 @@ function MainPage() {
           <VStack alignment="leading" spacing={14} padding={12}>
             <RecordsPage
               state={state}
-              cards={cards}
+              cards={todayCards}
               nowTs={nowTs}
               onRecord={() => { void handleRecord() }}
               onCloseCycle={() => setConfirmAction("close_cycle")}
