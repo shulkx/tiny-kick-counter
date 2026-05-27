@@ -122,7 +122,8 @@ function MainPage() {
 
   const cards = buildDayCards(state)
 
-  return <TabView>
+  return <VStack frame={{ maxWidth: "infinity", maxHeight: "infinity" }} background={themeColors.pageBackground}>
+    <TabView>
     <Tab title="记录" systemImage="heart.text.square">
       <NavigationStack>
         <ScrollView
@@ -141,7 +142,7 @@ function MainPage() {
             position: "bottom",
           }}
         >
-          <VStack alignment="leading" spacing={14} padding={12} background={themeColors.pageBackground}>
+          <VStack alignment="leading" spacing={14} padding={12}>
             <RecordsPage
               state={state}
               cards={cards}
@@ -184,7 +185,7 @@ function MainPage() {
             position: "bottom",
           }}
         >
-          <VStack alignment="leading" spacing={14} padding={12} background={themeColors.pageBackground}>
+          <VStack alignment="leading" spacing={14} padding={12}>
             <SettingsPage
               cards={cards}
               onExport={() => { void handleExport() }}
@@ -195,7 +196,8 @@ function MainPage() {
         </ScrollView>
       </NavigationStack>
     </Tab>
-  </TabView>
+    </TabView>
+  </VStack>
 }
 
 async function run() {
