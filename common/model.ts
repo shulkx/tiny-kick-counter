@@ -100,6 +100,13 @@ export function archiveExpiredCycleIfNeeded(state: FetalMovementState, nowTs: nu
   return archiveActiveCycle(state, "expired", state.active_cycle.scheduled_end_ts)
 }
 
+export function loadStateWithLazyArchive(nowTs = Date.now()): FetalMovementState {
+  const { state } = readState()
+  const archived = archiveExpiredCycleIfNeeded(state, nowTs)
+  if (archived) saveState(state)
+  return state
+}
+
 export async function recordMovement(eventTs: number, source: Source): Promise<CommandResult> {
   const nowTs = Date.now()
   const { state, warning } = readState()
