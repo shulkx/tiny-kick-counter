@@ -47,15 +47,30 @@ async function run() {
       close_reason: "manual" as const,
       is_valid: false,
     }
+    const validCycle = {
+      cycle_id: "valid",
+      day_key: "2026-05-26",
+      started_at: "2026-05-26 09:00:00",
+      started_ts: base,
+      scheduled_end_at: "2026-05-26 10:00:00",
+      scheduled_end_ts: base + 3600000,
+      effective_count: 4,
+      total_count: 5,
+      effective_movements: [],
+      close_reason: "expired" as const,
+      is_valid: true,
+    }
     const migrated = migrateStateIfNeeded({
       schema_version: 1,
       active_cycle: null,
       completed_cycles: [
         { at: "2026-05-26 09:50:05", ts: base } as any,
         fakeCycle,
+        validCycle,
       ],
     })
-    assert(migrated.completed_cycles.length === 0, "migration filters invalid and malformed cycles")
+    assert(migrated.completed_cycles.length === 1, "migration keeps valid cycles, filters invalid and malformed")
+    assert(migrated.completed_cycles[0].cycle_id === "valid", "migration keeps the correct cycle")
 
     console.log("model_test passed")
   } finally {
