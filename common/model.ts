@@ -13,6 +13,8 @@ import { isFutureRejected } from "../utils/command"
 import { cancelPendingCycleEndNotifications, scheduleCycleEndNotification } from "../utils/notifications"
 import { createBackupFile, defaultState, parseBackupJson, readState, restoreFromBackup, restoreFromBackupFile, saveState } from "./storage"
 
+export { createBackupFile }
+
 export async function resetState(): Promise<CommandResult> {
   const nowTs = Date.now()
   const state = defaultState()

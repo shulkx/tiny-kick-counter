@@ -15,12 +15,12 @@ import {
 } from "scripting"
 import {
   closeCycle,
+  createBackupFile,
   loadStateWithLazyArchive,
   recordMovement,
   resetState,
   restoreBackupFromFile,
 } from "./common/model"
-import { createBackupFile } from "./common/storage"
 import { buildDayCards } from "./common/stats"
 import { themeColors } from "./common/theme"
 import { FetalMovementState } from "./common/types"
