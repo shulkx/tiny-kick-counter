@@ -1,7 +1,7 @@
 # History Tab & Cycle Deletion Design
 
-**Date:** 2026-05-27
-**Status:** Draft
+**Date:** 2026-05-27 (revised 2026-05-28)
+**Status:** Approved (v2 — history page redesign)
 
 ## Summary
 
@@ -79,43 +79,73 @@ Two sequential phases:
 
 **Tab structure:** 记录 / 历史 / 设置
 
+**Architecture: List as sole scroll container (no outer ScrollView)**
+
+The History tab uses `<List>` directly inside `<NavigationStack>` — no wrapping `<ScrollView>`. This eliminates the double-scroll conflict that occurs when List is nested inside ScrollView. Navigation modifiers (`navigationTitle`, `toolbar`) and `toast` are applied directly on the List.
+
+```
+Tab "历史"
+└── NavigationStack
+    └── List (listStyle="insetGrouped", the only scroll container)
+        ├── Section (day card: 2026年5月28日)
+        │   ├── DaySummaryRow (not swipeable)
+        │   ├── CycleRow (swipe-to-delete)
+        │   └── CycleRow (swipe-to-delete)
+        ├── Section (day card: 2026年5月27日)
+        │   ├── DaySummaryRow
+        │   └── CycleRow
+        └── ...
+```
+
 **Page layout:**
 
 1. NavigationBar title: "历史记录", inline mode
-2. Uses `<List>` component with:
-   - `listStyle="plain"` — transparent background
-   - `listRowSeparator="hidden"` — no default separators
-   - `listRowInsets={0}` — no default padding
-   - `listRowBackground={<VStack />}` — clear row background
-   - `listRowSpacing={8}` — spacing between rows
-   - Dynamic `frame={{ height }}` calculated from data to work inside ScrollView
-3. Data grouped by day as `<Section>`, each with a date header ("2026年5月27日" format)
-4. Each cycle row displays:
-   - Time range (e.g. "14:30-15:30")
-   - Click count and effective count
-   - Styled with existing `pillBackground` + `smallCardRadius`
-5. Active cycle (if present) is displayed but **not deletable** (no swipe action)
-6. Completed cycles have `trailingSwipeActions` with:
+2. `<List>` with `listStyle="insetGrouped"`:
+   - Each Section automatically renders as a rounded card
+   - No need for manual `frame({ height })`, `listRowInsets`, or `listRowBackground` hacks
+   - System handles scroll, card appearance, and swipe gesture routing
+3. Data grouped by day as `<Section>`, each Section is a visual card containing:
+
+   **First row: Day summary (not swipeable)**
+   - Left side: date in Chinese format ("2026年5月28日") + active cycle indicator (● if has_active_cycle)
+   - Right side: estimated count badge (number + "推算次数" caption)
+   - Subtitle: "X小时计数 · X次有效胎动"
+
+   **Subsequent rows: Cycle rows (swipeable for completed cycles)**
+   - Left side: time range ("00:34-01:34")
+   - Right side: "有效 X  点击 X"
+   - Active cycle: shows ● indicator, **no swipe action**
+   - Completed cycle: has `trailingSwipeActions`
+
+4. Swipe-to-delete interaction:
    - `allowsFullSwipe: false` (prevent accidental full-swipe deletion)
-   - Single red "删除" button with trash icon
+   - Single "删除" button with trash icon, styled with `tint` (red color)
+   - **Critical:** Do NOT use `role="destructive"` on the swipe Button — this causes SwiftUI to auto-animate row removal before the confirmation dialog appears, leading to state mismatch and crash
    - On tap: `Dialog.confirm` with title "确认删除此周期？", message "删除后不可恢复。"
-   - On confirm: remove cycle from `completed_cycles`, save state, refresh
-7. Empty state: "暂无历史记录" when no cycles exist
-8. History includes today's data (today's cycles appear both on main page and history page)
+   - On confirm: `deleteCycle(cycleId)` → `refresh()` → `Widget.reloadAll()`
+
+5. After deletion:
+   - The day's summary stats (推算次数, 计数小时, 有效胎动) recalculate automatically
+   - If the deleted cycle was from today, the main "记录" tab also updates on next render
+   - If a day has no cycles remaining after deletion, the entire Section disappears
+   - Widget also refreshes
+
+6. Empty state: "暂无历史记录" + "完成一个计数周期后，记录会出现在这里。" when no cycles exist
+
+7. History includes today's data (today's cycles appear both on main page and history page)
 
 **Data layer:**
 
-- New function `deleteCycle(cycleId: string)` in `model.ts`:
+- `deleteCycle(cycleId: string)` in `model.ts` (already implemented):
   - Reads state, filters `completed_cycles` to exclude matching `cycle_id`
   - Saves state
-  - Returns `CommandResult` with confirmation message
+  - Returns `CommandResult` with status "deleted" or "not_found"
 
 **Affected files:**
 
-- `index.tsx` — add third Tab "历史" with NavigationStack + List
-- `pages/history.tsx` — new file, history page component
-- `common/model.ts` — add `deleteCycle` function
-- `common/stats.ts` — no changes needed; after Phase 1 cleanup all remaining cycles pass `getVisibleCycles` filter, so `buildDayCards` works as-is for both main page and history page
+- `index.tsx` — replace History tab's `<ScrollView>` wrapper with direct `<List>` approach; move `toast` and navigation props onto the HistoryPage component or a wrapper
+- `pages/history.tsx` — rewrite to use `insetGrouped` List with DaySummaryRow + CycleRow per Section
+- `common/stats.ts` — no changes needed; `buildDayCards` already computes all required stats
 
 ---
 
@@ -127,9 +157,14 @@ Two sequential phases:
 | Invalid cycle display | Don't persist after Phase 1 | Simplifies data, no need to filter in UI |
 | Today's data in history | Yes, included | Single place for deletion management |
 | Active cycle in history | Show but not deletable | User should use main page to stop active cycle |
-| Delete interaction | Swipe-to-delete + Dialog.confirm | iOS standard, verified working in prototype |
+| List style | `insetGrouped` | Card-per-day appearance with native swipe support |
+| No outer ScrollView | List is sole scroll container | Eliminates double-scroll conflict and gesture interception |
+| Day summary as first row | Not a Section header | Allows richer layout (badge, subtitle) within card body |
+| Delete interaction | Swipe-to-delete + Dialog.confirm | iOS standard, native List support |
+| Swipe button styling | `tint` (not `role="destructive"`) | Prevents auto-row-removal animation before dialog |
 | `allowsFullSwipe` | `false` | Prevent accidental deletion |
-| Delete confirmation | Dialog.confirm (Epical pattern) | Consistent with existing app patterns |
+| Delete confirmation | `Dialog.confirm` (global async) | Consistent with existing app patterns |
+| Post-delete refresh | `refresh()` recomputes all derived data | Stats, today page, and widget all sync automatically |
 | Today card title | "2026年5月27日" full Chinese date | Warm tone, no redundant "今天" prefix |
 | Main page empty state | Existing EmptyState component | Already well-designed, no changes needed |
 | Manual close confirmation | Dialog before calling closeCycle | User knows data won't be saved |
@@ -147,3 +182,12 @@ Two sequential phases:
 - Undo/soft-delete mechanism
 - Filtering or search within history
 - Widget changes (widget already only shows today)
+
+---
+
+## Revision History
+
+| Date | Change |
+|---|---|
+| 2026-05-27 | Initial draft |
+| 2026-05-28 | v2: Redesigned history page — replaced ScrollView+plain List with `insetGrouped` List as sole scroll container; added day summary row with stats (推算次数, 计数小时, 有效胎动); fixed delete crash by removing `role="destructive"` from swipe button |
