@@ -196,11 +196,10 @@ function MainPage() {
             cancellationAction: <Button title="关闭" action={dismiss} />,
             topBarTrailing: [
               <Button title="说明" systemImage="info.circle" action={() => {
-                void Dialog.confirm({
+                void Dialog.alert({
                   title: "统计结果说明",
                   message: "推算次数 = 有效胎动数 × 12 ÷ 计时小时\n\n正常（绿色）：推算次数 ≥ 30\n注意（橙色）：推算次数 ≥ 20\n紧急（红色）：推算次数 < 20\n\n本计数结果不包含任何医疗建议，如有任何疑问，请及时和您的医生联系。",
-                  confirmLabel: "知道了",
-                  cancelLabel: "",
+                  buttonLabel: "知道了",
                 })
               }} />,
               <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
