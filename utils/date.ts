@@ -21,3 +21,8 @@ export function formatMinuteRemaining(nowTs: number, endTs: number): string {
   const remainingMs = Math.max(0, endTs - nowTs)
   return String(Math.ceil(remainingMs / 60000))
 }
+
+export function formatChineseDateFromDayKey(dayKey: string): string {
+  const [year, month, day] = dayKey.split("-").map(Number)
+  return `${year}年${month}月${day}日`
+}

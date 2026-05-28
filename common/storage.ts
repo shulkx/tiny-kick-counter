@@ -41,10 +41,13 @@ export function migrateStateIfNeeded(value: unknown): FetalMovementState {
   if (!value || typeof value !== "object") return defaultState()
   const state = value as Partial<FetalMovementState>
   if (state.schema_version !== 1) return defaultState()
+  const validCycles = Array.isArray(state.completed_cycles)
+    ? state.completed_cycles.filter(c => isValidCycle(c) && c.is_valid !== false)
+    : []
   return {
     schema_version: 1,
     active_cycle: isValidCycle(state.active_cycle) ? state.active_cycle : null,
-    completed_cycles: Array.isArray(state.completed_cycles) ? state.completed_cycles.filter(isValidCycle) : [],
+    completed_cycles: validCycles,
   }
 }
 

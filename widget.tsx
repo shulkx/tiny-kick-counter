@@ -1,5 +1,5 @@
 import { Button, HStack, Script, Spacer, Text, VStack, Widget, WidgetFamily } from "scripting"
-import { CloseCycleIntent, RecordMovementIntent } from "./app_intents"
+import { RecordMovementIntent } from "./app_intents"
 import {
   getTodayCard,
   loadStateWithLazyArchive,
@@ -66,11 +66,10 @@ function StatusCard({ row, nowTs }: { row?: ReturnType<typeof selectWidgetRows>[
   </VStack>
 }
 
-function ActionButtons({ hasActive, family }: { hasActive: boolean; family: WidgetFamily }) {
+function ActionButtons({ family }: { family: WidgetFamily }) {
   const isLarge = family === "systemLarge" || family === "systemExtraLarge"
   const buttonHeight = isLarge ? 40 : 32
   const primaryWidth = isLarge ? 148 : 112
-  const secondaryWidth = isLarge ? 78 : 64
 
   return <HStack spacing={isLarge ? 10 : 8} buttonStyle="plain">
     <Button intent={RecordMovementIntent({})}>
@@ -81,21 +80,12 @@ function ActionButtons({ hasActive, family }: { hasActive: boolean; family: Widg
         background={roundedBackground(themeColors.primaryButtonBackground, buttonHeight / 2)}
       >记录胎动</Text>
     </Button>
-    {hasActive ? <Button role="destructive" intent={CloseCycleIntent({})}>
-      <Text
-        font={isLarge ? 18 : 16}
-        foregroundStyle={themeColors.secondaryLabel}
-        frame={{ width: secondaryWidth, height: buttonHeight }}
-        background={roundedBackground(themeColors.secondaryButtonBackground, buttonHeight / 2)}
-      >结束</Text>
-    </Button> : null}
   </HStack>
 }
 
 function WidgetView({ state, nowTs }: { state: FetalMovementState; nowTs: number }) {
   const card = getTodayCard(state, nowTs)
   const { rows } = selectWidgetRows(card)
-  const hasActive = Boolean(state.active_cycle)
   const primaryRow = rows[0]
   const family = Widget.family
   const isLarge = family === "systemLarge" || family === "systemExtraLarge"
@@ -106,7 +96,7 @@ function WidgetView({ state, nowTs }: { state: FetalMovementState; nowTs: number
     <Summary card={card} />
     <StatusCard row={primaryRow} nowTs={nowTs} />
     {isLarge ? <Spacer /> : null}
-    <ActionButtons hasActive={hasActive} family={family} />
+    <ActionButtons family={family} />
   </VStack>
 }
 

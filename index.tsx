@@ -17,6 +17,7 @@ import {
   buildDayCards,
   closeCycle,
   createBackupFile,
+  deleteCycle,
   loadStateWithLazyArchive,
   recordMovement,
   resetState,
@@ -24,6 +25,8 @@ import {
   themeColors,
 } from "./common/model"
 import type { FetalMovementState } from "./common/model"
+import { formatDayKey } from "./utils"
+import { HistoryPage } from "./pages/history"
 import { RecordsPage } from "./pages/records"
 import { SettingsPage } from "./pages/settings"
 
@@ -33,7 +36,7 @@ function MainPage() {
   const [nowTs, setNowTs] = useState(Date.now())
   const [toastMessage, setToastMessage] = useState("")
   const [showToast, setShowToast] = useState(false)
-  const [confirmAction, setConfirmAction] = useState<"reset" | "restore" | null>(null)
+  const [confirmAction, setConfirmAction] = useState<"reset" | "restore" | "close_cycle" | null>(null)
   const [isRecording, setIsRecording] = useState(false)
 
   function refresh(message?: string) {
@@ -70,7 +73,8 @@ function MainPage() {
     }
   }
 
-  async function handleCloseCycle() {
+  async function handleConfirmedCloseCycle() {
+    setConfirmAction(null)
     if (isRecording) return
     setIsRecording(true)
     try {
@@ -113,6 +117,20 @@ function MainPage() {
     }
   }
 
+  async function handleDeleteCycle(cycleId: string) {
+    const ok = await Dialog.confirm({
+      title: "确认删除此周期？",
+      message: "删除后不可恢复。",
+      cancelLabel: "取消",
+      confirmLabel: "删除",
+    })
+    if (ok) {
+      deleteCycle(cycleId)
+      refresh("已删除该周期。")
+      Widget.reloadAll()
+    }
+  }
+
   async function handleReset() {
     const result = await resetState()
     setConfirmAction(null)
@@ -121,6 +139,9 @@ function MainPage() {
   }
 
   const cards = buildDayCards(state)
+  const allCards = buildDayCards(state, Infinity)
+  const todayKey = formatDayKey(nowTs)
+  const todayCards = cards.filter(card => card.day_key === todayKey)
 
   return <VStack frame={{ maxWidth: "infinity", maxHeight: "infinity" }} background={themeColors.pageBackground}>
     <TabView>
@@ -134,6 +155,16 @@ function MainPage() {
             cancellationAction: <Button title="关闭" action={dismiss} />,
             primaryAction: <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
           }}
+          confirmationDialog={{
+            title: "停止本次记录？",
+            isPresented: confirmAction === "close_cycle",
+            onChanged: isPresented => { if (!isPresented) setConfirmAction(null) },
+            message: <Text>系统将不会保存这次的数据</Text>,
+            actions: <VStack>
+              <Button title="确认停止" role="destructive" action={() => { void handleConfirmedCloseCycle() }} />
+              <Button title="取消" role="cancel" action={() => setConfirmAction(null)} />
+            </VStack>,
+          }}
           toast={{
             message: toastMessage,
             isPresented: showToast,
@@ -145,13 +176,48 @@ function MainPage() {
           <VStack alignment="leading" spacing={14} padding={12}>
             <RecordsPage
               state={state}
-              cards={cards}
+              cards={todayCards}
               nowTs={nowTs}
               onRecord={() => { void handleRecord() }}
-              onCloseCycle={() => { void handleCloseCycle() }}
+              onCloseCycle={() => setConfirmAction("close_cycle")}
             />
           </VStack>
         </ScrollView>
+      </NavigationStack>
+    </Tab>
+
+    <Tab title="历史" systemImage="clock.arrow.circlepath">
+      <NavigationStack>
+        <VStack
+          onAppear={() => refresh()}
+          navigationTitle="历史记录"
+          navigationBarTitleDisplayMode="inline"
+          toolbar={{
+            cancellationAction: <Button title="关闭" action={dismiss} />,
+            topBarTrailing: [
+              <Button title="说明" systemImage="info.circle" action={() => {
+                void Dialog.alert({
+                  title: "统计结果说明",
+                  message: "推算次数 = 有效胎动数 × 12 ÷ 计时小时\n\n正常（绿色）：推算次数 ≥ 30\n注意（橙色）：推算次数 ≥ 20\n紧急（红色）：推算次数 < 20\n\n本计数结果不包含任何医疗建议，如有任何疑问，请及时和您的医生联系。",
+                  buttonLabel: "知道了",
+                })
+              }} />,
+              <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
+            ],
+          }}
+          toast={{
+            message: toastMessage,
+            isPresented: showToast,
+            onChanged: setShowToast,
+            duration: 2,
+            position: "bottom",
+          }}
+        >
+          <HistoryPage
+            cards={allCards}
+            onDeleteCycle={(cycleId) => { void handleDeleteCycle(cycleId) }}
+          />
+        </VStack>
       </NavigationStack>
     </Tab>
 
@@ -167,7 +233,7 @@ function MainPage() {
           }}
           confirmationDialog={{
             title: confirmAction === "restore" ? "从备份恢复？" : "重置胎动数据？",
-            isPresented: confirmAction !== null,
+            isPresented: confirmAction === "restore" || confirmAction === "reset",
             onChanged: isPresented => { if (!isPresented) setConfirmAction(null) },
             message: <Text>{confirmAction === "restore" ? "恢复会用备份文件覆盖当前胎动数据。恢复前会自动生成一份安全备份。" : "此操作会清空当前周期和全部历史记录，不能撤销。"}</Text>,
             actions: <VStack>
