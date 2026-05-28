@@ -188,7 +188,7 @@ function MainPage() {
 
     <Tab title="历史" systemImage="clock.arrow.circlepath">
       <NavigationStack>
-        <ScrollView
+        <VStack
           onAppear={() => refresh()}
           navigationTitle="历史记录"
           navigationBarTitleDisplayMode="inline"
@@ -208,7 +208,7 @@ function MainPage() {
             cards={allCards}
             onDeleteCycle={(cycleId) => { void handleDeleteCycle(cycleId) }}
           />
-        </ScrollView>
+        </VStack>
       </NavigationStack>
     </Tab>
 
