@@ -34,14 +34,14 @@ const vmin = (n: number) => {
 export const rpt = (n: number) => vmin((n * 100) / 155)
 ```
 
-放置位置：`utils/responsive.ts`（新文件），widget.tsx 中导入使用。
+放置位置：`utils/responsive.ts`（新文件），并在 `utils/index.ts` 中添加 `export * from "./responsive"` 以保持现有 re-export 模式。widget.tsx 从 `"./utils"` 导入 `rpt`。
 
 ### systemSmall 布局
 
 精简为三个区域，垂直排列：
 
 1. **标题行** — "胎动记录"，`font: rpt(10)`，`fontWeight: "bold"`
-2. **状态卡片**（flex 占据剩余空间）
+2. **状态卡片**（flex 占据剩余空间）— 显示内容由 `selectWidgetRows` 返回的第一行决定：有 active row → "进行中"状态；有 completed row → "最近一轮"状态；无任何 row → "准备开始"空状态。
    - **有活跃周期时**：
      - 背景色 `widgetActiveCardBackground`
      - 顶部行：左"进行中" / 右"剩 XX 分"，`font: rpt(9)`
@@ -94,7 +94,7 @@ Padding：`rpt(14)` 水平和顶部，`rpt(12)` 底部。
 
 上半部分 = systemMedium 的完整内容，下半部分新增周期列表：
 
-1. **Summary + StatusCard + ActionButtons**（同 medium）
+1. **Summary + StatusCard + ActionButtons**（组件结构同 medium，但尺寸值使用下方 Large 表格中的值）
 2. **分隔线** — 1pt 高，颜色 `tertiaryLabel`，水平 margin `rpt(4)`
 3. **周期列表标题** — "今日周期记录"，`font: rpt(9)`，`foregroundStyle: secondaryLabel`
 4. **周期行列表** — 使用 `selectWidgetRows` 返回的全部 rows（去掉当前的 2 行限制，改为按可用空间尽量多显示），每行结构：
@@ -135,6 +135,7 @@ widget.tsx 中 systemLarge 调用时传入更大的值（如 6）。
 | 文件 | 变更 |
 |------|------|
 | `utils/responsive.ts` | 新增 `vmin()` 和 `rpt()` 函数 |
+| `utils/index.ts` | 添加 `export * from "./responsive"` |
 | `widget.tsx` | 重构为按 Widget.family 分发不同布局组件；所有硬编码尺寸改用 rpt() |
 | `common/stats.ts` | `selectWidgetRows` 增加 `maxRows` 参数 |
 
