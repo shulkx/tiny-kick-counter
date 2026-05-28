@@ -118,7 +118,7 @@ Plus shared sub-components extracted for reuse:
 Replace the entire contents of `widget.tsx` with:
 
 ```tsx
-import { Button, HStack, Script, Spacer, Text, VStack, Widget } from "scripting"
+import { Button, Divider, HStack, Script, Spacer, Text, VStack, Widget } from "scripting"
 import { RecordMovementIntent } from "./app_intents"
 import {
   getTodayCard,
@@ -320,7 +320,7 @@ function LargeView({ state, nowTs }: { state: FetalMovementState; nowTs: number 
     <StatusCard row={primaryRow} nowTs={nowTs} />
     <ActionButton fontSize={rpt(14)} height={rpt(32)} width={rpt(140)} />
     {completedRows.length > 0 ? <VStack alignment="leading" spacing={rpt(6)} frame={{ maxWidth: "infinity" }}>
-      <VStack frame={{ maxWidth: "infinity", height: 1 }} background={themeColors.tertiaryLabel} padding={{ horizontal: rpt(4) }} />
+      <Divider />
       <Text font={rpt(9)} fontWeight="semibold" foregroundStyle={themeColors.secondaryLabel}>今日周期记录</Text>
       {completedRows.map((row, i) =>
         <CycleRow key={row.cycle.cycle_id} cycle={row.cycle} index={completedRows.length - i} />
