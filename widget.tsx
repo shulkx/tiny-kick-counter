@@ -188,7 +188,7 @@ function LargeView({ state, nowTs }: { state: FetalMovementState; nowTs: number 
   const card = getTodayCard(state, nowTs)
   const { rows } = selectWidgetRows(card, 6)
   const primaryRow = rows[0]
-  const completedRows = rows.filter(r => !r.isActive)
+  const completedRows = rows.filter(r => !r.isActive && r !== primaryRow)
 
   return <VStack
     alignment="leading"
