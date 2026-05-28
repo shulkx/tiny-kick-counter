@@ -15,7 +15,6 @@ import { createBackupFile, defaultState, parseBackupJson, readState, restoreFrom
 
 export { createBackupFile }
 export { buildDayCards, getTodayCard, selectWidgetRows, summarizeDayCards } from "./stats"
-export { formatDayKey } from "../utils/date"
 export { roundedBackground, themeColors, widgetCardRadius } from "./theme"
 export type { FetalMovementState } from "./types"
 
