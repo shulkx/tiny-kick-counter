@@ -29,6 +29,7 @@
 - [ ] **Step 1: Replace entire file with new implementation**
 
 ```tsx
+import type { Color } from "scripting"
 import {
   Button,
   HStack,
@@ -43,6 +44,12 @@ import { themeColors } from "../common/theme"
 import { Cycle, DayCard } from "../common/types"
 import { formatChineseDateFromDayKey, formatTime } from "../utils"
 
+function estimatedCountColor(count: number) {
+  if (count >= 30) return themeColors.systemGreen
+  if (count >= 20) return "systemOrange" as Color
+  return themeColors.systemRed
+}
+
 function DaySummaryRow({ card }: { card: DayCard }) {
   return <VStack alignment="leading" spacing={6} listRowSeparator="hidden">
     <HStack>
@@ -56,7 +63,7 @@ function DaySummaryRow({ card }: { card: DayCard }) {
       </HStack>
       <Spacer />
       <VStack alignment="trailing" spacing={1}>
-        <Text font="title2" fontWeight="semibold" foregroundStyle={themeColors.systemRed}>
+        <Text font="title2" fontWeight="semibold" foregroundStyle={estimatedCountColor(card.estimated_count)}>
           {card.estimated_count}
         </Text>
         <Text font="caption2" foregroundStyle={themeColors.secondaryLabel}>推算次数</Text>
