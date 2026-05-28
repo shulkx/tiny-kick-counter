@@ -18,6 +18,7 @@ import {
   closeCycle,
   createBackupFile,
   deleteCycle,
+  formatDayKey,
   loadStateWithLazyArchive,
   recordMovement,
   resetState,
@@ -25,7 +26,6 @@ import {
   themeColors,
 } from "./common/model"
 import type { FetalMovementState } from "./common/model"
-import { formatDayKey } from "./utils"
 import { HistoryPage } from "./pages/history"
 import { RecordsPage } from "./pages/records"
 import { SettingsPage } from "./pages/settings"
