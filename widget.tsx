@@ -113,18 +113,21 @@ function StatusCardSmall({ row, nowTs }: { row?: WidgetRow; nowTs: number }) {
 }
 
 function ActionButton({ fontSize, height, width }: { fontSize: number; height: number; width?: number }) {
+  const frameProps = width != null
+    ? { width, height }
+    : { maxWidth: "infinity" as const, height }
   return <HStack buttonStyle="plain" frame={{ maxWidth: "infinity" }}>
-    <Spacer />
+    {width != null ? <Spacer /> : null}
     <Button intent={RecordMovementIntent({})}>
       <Text
         font={fontSize}
         fontWeight="semibold"
         foregroundStyle={themeColors.systemBlue}
-        frame={{ width: width, height: height }}
+        frame={frameProps}
         background={roundedBackground(themeColors.primaryButtonBackground, height / 2)}
       >记录胎动</Text>
     </Button>
-    <Spacer />
+    {width != null ? <Spacer /> : null}
   </HStack>
 }
 
