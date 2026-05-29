@@ -51,14 +51,14 @@ export function getTodayCard(state: FetalMovementState, nowTs = Date.now()): Day
   return found ? found : null
 }
 
-export function selectWidgetRows(card: DayCard | null): { rows: WidgetCycleRow[]; hiddenCount: number } {
+export function selectWidgetRows(card: DayCard | null, maxRows = 2): { rows: WidgetCycleRow[]; hiddenCount: number } {
   if (!card) return { rows: [], hiddenCount: 0 }
   const active = card.cycles.find(cycle => !cycle.close_reason)
   const completed = card.cycles.filter(cycle => cycle.close_reason === "expired")
   const rows: WidgetCycleRow[] = []
   if (active) rows.push({ cycle: active, label: "当前", isActive: true })
   for (const cycle of completed) {
-    if (rows.length >= 2) break
+    if (rows.length >= maxRows) break
     rows.push({ cycle, label: "上轮", isActive: false })
   }
   const hiddenCount = Math.max(0, card.cycles.length - rows.length)
