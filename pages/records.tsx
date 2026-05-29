@@ -58,7 +58,8 @@ function RecordsHeroCard({
 }
 
 function CycleRow({ cycle, nowTs }: { cycle: Cycle; nowTs: number }) {
-  const isActive = !cycle.close_reason
+  const isActive = !cycle.close_reason && cycle.source !== "seeyou"
+  const isSeeyou = cycle.source === "seeyou"
   const timeRange = `${formatTime(cycle.started_ts)}-${formatTime(cycle.scheduled_end_ts)}`
   const status = isActive
     ? `进行中 · 剩约 ${formatMinuteRemaining(nowTs, cycle.scheduled_end_ts)} 分钟`
@@ -76,7 +77,7 @@ function CycleRow({ cycle, nowTs }: { cycle: Cycle; nowTs: number }) {
       {isActive ? <HStack spacing={4}>
         <Text font="caption" foregroundStyle={themeColors.activeStatusDot}>●</Text>
         <Text font="caption" foregroundStyle={themeColors.activeStatusText}>{status}</Text>
-      </HStack> : <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>{status}</Text>}
+      </HStack> : <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>{status}{isSeeyou ? " ·美柚" : ""}</Text>}
     </HStack>
     <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>{timeRange}</Text>
     <HStack spacing={12}>
