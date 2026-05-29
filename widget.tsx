@@ -76,7 +76,7 @@ function StatusCardSmall({ row, nowTs }: { row?: WidgetRow; nowTs: number }) {
       spacing={4}
       padding={{ horizontal: 10, vertical: 8 }}
       background={roundedBackground(themeColors.widgetNeutralCardBackground, 12)}
-      frame={{ maxWidth: "infinity", maxHeight: "infinity" }}
+      frame={{ maxWidth: "infinity" }}
     >
       <Text font={12} fontWeight="semibold" foregroundStyle={themeColors.widgetAccentText}>准备开始</Text>
       <Text font={11} foregroundStyle={themeColors.secondaryLabel} multilineTextAlignment="center">
@@ -95,7 +95,7 @@ function StatusCardSmall({ row, nowTs }: { row?: WidgetRow; nowTs: number }) {
     spacing={0}
     padding={{ horizontal: 10, vertical: 8 }}
     background={roundedBackground(row.isActive ? themeColors.widgetActiveCardBackground : themeColors.widgetNeutralCardBackground, 12)}
-    frame={{ maxWidth: "infinity", maxHeight: "infinity" }}
+    frame={{ maxWidth: "infinity" }}
   >
     <HStack frame={{ maxWidth: "infinity" }}>
       <Text font={12} fontWeight="semibold" foregroundStyle={themeColors.widgetAccentText}>{title}</Text>
@@ -156,17 +156,14 @@ function SmallView({ state, nowTs }: { state: FetalMovementState; nowTs: number 
 
   return <VStack
     alignment="leading"
-    spacing={0}
     padding={14}
     foregroundStyle={themeColors.label}
   >
     <Text font={13} fontWeight="bold" foregroundStyle={themeColors.label}>胎动记录</Text>
-    <VStack padding={{ top: 8 }} frame={{ maxWidth: "infinity", maxHeight: "infinity" }}>
-      <StatusCardSmall row={primaryRow} nowTs={nowTs} />
-    </VStack>
-    <VStack padding={{ top: 8 }}>
-      <ActionButton fontSize={14} height={30} />
-    </VStack>
+    <Spacer />
+    <StatusCardSmall row={primaryRow} nowTs={nowTs} />
+    <Spacer />
+    <ActionButton fontSize={14} height={30} />
   </VStack>
 }
 
@@ -177,12 +174,13 @@ function MediumView({ state, nowTs }: { state: FetalMovementState; nowTs: number
 
   return <VStack
     alignment="leading"
-    spacing={10}
     padding={{ horizontal: 16, vertical: 14 }}
     foregroundStyle={themeColors.label}
   >
     <Summary card={card} />
+    <Spacer />
     <StatusCard row={primaryRow} nowTs={nowTs} />
+    <Spacer />
     <ActionButton fontSize={15} height={32} width={130} />
   </VStack>
 }
@@ -195,12 +193,13 @@ function LargeView({ state, nowTs }: { state: FetalMovementState; nowTs: number 
 
   return <VStack
     alignment="leading"
-    spacing={10}
     padding={16}
     foregroundStyle={themeColors.label}
   >
     <Summary card={card} />
+    <Spacer />
     <StatusCard row={primaryRow} nowTs={nowTs} />
+    <Spacer />
     <ActionButton fontSize={15} height={34} width={150} />
     {completedRows.length > 0 ? <VStack alignment="leading" spacing={6} frame={{ maxWidth: "infinity" }}>
       <Divider />
