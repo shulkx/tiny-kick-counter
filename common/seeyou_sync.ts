@@ -1,0 +1,47 @@
+import { SEEYOU_AUTO_SYNC_MIN_INTERVAL_MS, SeeyouSyncResult } from "./seeyou_types"
+import { getSeeyouToken } from "./seeyou_token"
+import { fetchSeeyouFetal } from "./seeyou_api"
+import { reconcileByDay } from "./seeyou_reconcile"
+import { readSeeyouCache, saveSeeyouCache, shouldAutoSync } from "./seeyou_cache"
+
+export async function syncSeeyou(): Promise<SeeyouSyncResult> {
+  const token = getSeeyouToken()
+  if (!token) {
+    return { kind: "no_token", message: "未配置 Token" }
+  }
+
+  const fetchResult = await fetchSeeyouFetal(token)
+
+  if (fetchResult.kind !== "ok") {
+    const cache = readSeeyouCache()
+    saveSeeyouCache({
+      ...cache,
+      last_sync_ts: Date.now(),
+      last_sync_status: fetchResult.kind,
+      last_sync_error_message: fetchResult.message,
+    })
+    return fetchResult
+  }
+
+  const cache = readSeeyouCache()
+  const reconciledCycles = reconcileByDay(cache.cycles, fetchResult.data)
+
+  const next = {
+    ...cache,
+    cycles: reconciledCycles,
+    last_sync_ts: Date.now(),
+    last_sync_status: "ok" as const,
+    last_sync_error_message: null,
+  }
+  saveSeeyouCache(next)
+
+  return { kind: "ok", importedCount: reconciledCycles.length, totalCount: reconciledCycles.length }
+}
+
+export async function autoSyncIfDue(): Promise<SeeyouSyncResult | null> {
+  const cache = readSeeyouCache()
+  if (!cache.sync_enabled) return null
+  const now = Date.now()
+  if (!shouldAutoSync(now, cache.last_sync_ts, SEEYOU_AUTO_SYNC_MIN_INTERVAL_MS)) return null
+  return syncSeeyou()
+}
