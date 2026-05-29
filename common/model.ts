@@ -16,7 +16,7 @@ import { createBackupFile, defaultState, parseBackupJson, readState, restoreFrom
 export { createBackupFile }
 export { buildDayCards, getTodayCard, selectWidgetRows, summarizeDayCards } from "./stats"
 export { roundedBackground, themeColors, widgetCardRadius } from "./theme"
-export type { FetalMovementState } from "./types"
+export type { FetalMovementState, Cycle } from "./types"
 export { syncSeeyou, autoSyncIfDue } from "./seeyou_sync"
 export { readSeeyouCache, saveSeeyouCache, setSyncEnabled, clearSeeyouData, shouldAutoSync } from "./seeyou_cache"
 export { getSeeyouToken, setSeeyouToken, clearSeeyouToken, hasSeeyouToken } from "./seeyou_token"

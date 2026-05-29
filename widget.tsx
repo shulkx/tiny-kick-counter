@@ -3,12 +3,13 @@ import { RecordMovementIntent } from "./app_intents"
 import {
   getTodayCard,
   loadStateWithLazyArchive,
+  readSeeyouCache,
   roundedBackground,
   selectWidgetRows,
   themeColors,
   widgetCardRadius,
 } from "./common/model"
-import type { FetalMovementState } from "./common/model"
+import type { FetalMovementState, Cycle } from "./common/model"
 import { formatMinuteRemaining, formatTime } from "./utils"
 
 type WidgetRow = ReturnType<typeof selectWidgetRows>["rows"][number]
@@ -52,6 +53,7 @@ function StatusCard({ row, nowTs }: { row?: WidgetRow; nowTs: number }) {
   const time = `${formatTime(cycle.started_ts)}–${formatTime(cycle.scheduled_end_ts)}`
   const title = row.isActive ? "进行中" : "最近一轮"
   const trailing = row.isActive ? `剩${formatMinuteRemaining(nowTs, cycle.scheduled_end_ts)}分` : "已完成"
+  const seeyouBadge = cycle.source === "seeyou" ? " ·美柚" : ""
 
   return <VStack
     alignment="leading"
@@ -63,7 +65,7 @@ function StatusCard({ row, nowTs }: { row?: WidgetRow; nowTs: number }) {
     <HStack>
       <Text font={12} fontWeight="semibold" foregroundStyle={themeColors.widgetAccentText}>{title}</Text>
       <Spacer />
-      <Text font={12} fontWeight="semibold" foregroundStyle={themeColors.widgetAccentText}>{trailing}</Text>
+      <Text font={12} fontWeight="semibold" foregroundStyle={themeColors.widgetAccentText}>{trailing}{seeyouBadge}</Text>
     </HStack>
     <Text font={12} foregroundStyle={themeColors.label}>{time} · 有效{cycle.effective_count}次 · 点击{cycle.total_count}次</Text>
   </VStack>
@@ -89,6 +91,7 @@ function StatusCardSmall({ row, nowTs }: { row?: WidgetRow; nowTs: number }) {
   const time = `${formatTime(cycle.started_ts)}–${formatTime(cycle.scheduled_end_ts)}`
   const title = row.isActive ? "进行中" : "最近一轮"
   const trailing = row.isActive ? `剩${formatMinuteRemaining(nowTs, cycle.scheduled_end_ts)}分` : "已完成"
+  const seeyouBadge = cycle.source === "seeyou" ? " ·美柚" : ""
 
   return <VStack
     alignment="center"
@@ -133,6 +136,7 @@ function ActionButton({ fontSize, height, width }: { fontSize: number; height: n
 
 function CycleRow({ cycle, index }: { cycle: WidgetRow["cycle"]; index: number }) {
   const time = `${formatTime(cycle.started_ts)}–${formatTime(cycle.scheduled_end_ts)}`
+  const badge = cycle.source === "seeyou" ? " ·美柚" : ""
   return <VStack
     alignment="leading"
     spacing={2}
@@ -143,14 +147,14 @@ function CycleRow({ cycle, index }: { cycle: WidgetRow["cycle"]; index: number }
     <HStack>
       <Text font={11} fontWeight="semibold" foregroundStyle={themeColors.widgetAccentText}>第 {index} 轮</Text>
       <Spacer />
-      <Text font={11} foregroundStyle={themeColors.secondaryLabel}>已完成</Text>
+      <Text font={11} foregroundStyle={themeColors.secondaryLabel}>已完成{badge}</Text>
     </HStack>
     <Text font={11} foregroundStyle={themeColors.label}>{time} · 有效{cycle.effective_count}次 · 点击{cycle.total_count}次</Text>
   </VStack>
 }
 
-function SmallView({ state, nowTs }: { state: FetalMovementState; nowTs: number }) {
-  const card = getTodayCard(state, nowTs)
+function SmallView({ state, nowTs, seeyouCycles }: { state: FetalMovementState; nowTs: number; seeyouCycles: Cycle[] }) {
+  const card = getTodayCard(state, nowTs, seeyouCycles)
   const { rows } = selectWidgetRows(card)
   const primaryRow = rows[0]
 
@@ -167,8 +171,8 @@ function SmallView({ state, nowTs }: { state: FetalMovementState; nowTs: number 
   </VStack>
 }
 
-function MediumView({ state, nowTs }: { state: FetalMovementState; nowTs: number }) {
-  const card = getTodayCard(state, nowTs)
+function MediumView({ state, nowTs, seeyouCycles }: { state: FetalMovementState; nowTs: number; seeyouCycles: Cycle[] }) {
+  const card = getTodayCard(state, nowTs, seeyouCycles)
   const { rows } = selectWidgetRows(card)
   const primaryRow = rows[0]
 
@@ -185,8 +189,8 @@ function MediumView({ state, nowTs }: { state: FetalMovementState; nowTs: number
   </VStack>
 }
 
-function LargeView({ state, nowTs }: { state: FetalMovementState; nowTs: number }) {
-  const card = getTodayCard(state, nowTs)
+function LargeView({ state, nowTs, seeyouCycles }: { state: FetalMovementState; nowTs: number; seeyouCycles: Cycle[] }) {
+  const card = getTodayCard(state, nowTs, seeyouCycles)
   const { rows } = selectWidgetRows(card, 6)
   const primaryRow = rows[0]
   const completedRows = rows.filter(r => !r.isActive && r !== primaryRow)
@@ -212,23 +216,25 @@ function LargeView({ state, nowTs }: { state: FetalMovementState; nowTs: number 
   </VStack>
 }
 
-function WidgetView({ state, nowTs }: { state: FetalMovementState; nowTs: number }) {
+function WidgetView({ state, nowTs, seeyouCycles }: { state: FetalMovementState; nowTs: number; seeyouCycles: Cycle[] }) {
   const family = Widget.family
   if (family === "systemSmall") {
-    return <SmallView state={state} nowTs={nowTs} />
+    return <SmallView state={state} nowTs={nowTs} seeyouCycles={seeyouCycles} />
   }
   if (family === "systemLarge" || family === "systemExtraLarge") {
-    return <LargeView state={state} nowTs={nowTs} />
+    return <LargeView state={state} nowTs={nowTs} seeyouCycles={seeyouCycles} />
   }
-  return <MediumView state={state} nowTs={nowTs} />
+  return <MediumView state={state} nowTs={nowTs} seeyouCycles={seeyouCycles} />
 }
 
 const nowTs = Date.now()
 const state = loadStateWithLazyArchive(nowTs)
+const seeyouCache = readSeeyouCache()
+const seeyouCycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
 
 const nextReload = state.active_cycle
   ? new Date(Math.min(nowTs + 5 * 60 * 1000, state.active_cycle.scheduled_end_ts + 1000))
   : undefined
 
-Widget.present(<WidgetView state={state} nowTs={nowTs} />, nextReload ? { policy: "after", date: nextReload } : undefined)
+Widget.present(<WidgetView state={state} nowTs={nowTs} seeyouCycles={seeyouCycles} />, nextReload ? { policy: "after", date: nextReload } : undefined)
 Script.exit()
