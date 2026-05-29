@@ -102,3 +102,25 @@ TinyKickCounter.zip
 ```
 
 正式版本使用 `vX.Y.Z`；测试版本使用 `vX.Y.Z-beta.N`，测试版本会被标记为 prerelease。Release tag 必须指向 `main` 分支可达的提交。
+
+## 美柚同步（高级）
+
+Tiny Kick Counter 支持从美柚 App 导入胎动记录，与本机数据合并显示。
+
+### 启用方式
+
+1. 打开设置页，找到"美柚同步"部分
+2. 粘贴 Token 并点击"保存"
+3. 打开"启用美柚同步"开关
+4. 点击"立即同步"
+
+### Token 获取
+
+需要通过 HTTP 抓包工具（如 Stream、Proxyman）获取美柚 App 请求中的 `authorization` 请求头：
+
+1. 配置抓包工具并安装 HTTPS 证书
+2. 打开美柚 App，进入"工具"→"胎动计数"
+3. 在抓包记录中找到 `tools.seeyouyima.com/fetal` 请求
+4. 复制请求头中 `authorization` 字段的完整值
+
+Token 有效期取决于美柚服务端，失效后需要重新获取。
