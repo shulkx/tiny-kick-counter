@@ -14,11 +14,13 @@ import {
   useState,
 } from "scripting"
 import {
+  autoSyncIfDue,
   buildDayCards,
   closeCycle,
   createBackupFile,
   deleteCycle,
   loadStateWithLazyArchive,
+  readSeeyouCache,
   recordMovement,
   resetState,
   restoreBackupFromFile,
@@ -50,7 +52,12 @@ function MainPage() {
 
   useEffect(() => {
     const handleScenePhase = (phase: "active" | "inactive" | "background") => {
-      if (phase === "active") refresh()
+      if (phase === "active") {
+        refresh()
+        void autoSyncIfDue().then(result => {
+          if (result?.kind === "ok") refresh()
+        })
+      }
     }
     AppEvents.scenePhase.addListener(handleScenePhase)
     return () => AppEvents.scenePhase.removeListener(handleScenePhase)
@@ -118,6 +125,7 @@ function MainPage() {
   }
 
   async function handleDeleteCycle(cycleId: string) {
+    if (cycleId.startsWith("seeyou:")) return
     const ok = await Dialog.confirm({
       title: "确认删除此周期？",
       message: "删除后不可恢复。",
@@ -138,8 +146,10 @@ function MainPage() {
     Widget.reloadAll()
   }
 
-  const cards = buildDayCards(state)
-  const allCards = buildDayCards(state, Infinity)
+  const seeyouCache = readSeeyouCache()
+  const seeyouCycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
+  const cards = buildDayCards(state, undefined, seeyouCycles)
+  const allCards = buildDayCards(state, Infinity, seeyouCycles)
   const todayKey = formatDayKey(nowTs)
   const todayCards = cards.filter(card => card.day_key === todayKey)
 
@@ -257,6 +267,7 @@ function MainPage() {
               onExport={() => { void handleExport() }}
               onRestore={() => setConfirmAction("restore")}
               onReset={() => setConfirmAction("reset")}
+              onRefresh={() => refresh()}
             />
           </VStack>
         </ScrollView>

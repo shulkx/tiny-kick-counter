@@ -51,8 +51,9 @@ function HistoryCycleRow({
   cycle: Cycle
   onDelete?: (cycleId: string) => void
 }) {
-  const isActive = !cycle.close_reason
-  const swipe = onDelete ? {
+  const isActive = !cycle.close_reason && cycle.source !== "seeyou"
+  const isSeeyou = cycle.source === "seeyou"
+  const swipe = onDelete && !isSeeyou ? {
     allowsFullSwipe: false,
     actions: [
       <Button
@@ -70,6 +71,7 @@ function HistoryCycleRow({
         {formatTime(cycle.started_ts)}-{formatTime(cycle.scheduled_end_ts)}
       </Text>
       {isActive ? <Text font="caption" foregroundStyle={themeColors.activeStatusDot}>●</Text> : null}
+      {isSeeyou ? <Text font={11} foregroundStyle={themeColors.tertiaryLabel}>美柚</Text> : null}
     </HStack>
     <Spacer />
     <HStack spacing={10}>
