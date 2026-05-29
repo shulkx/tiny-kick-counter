@@ -98,12 +98,12 @@ export function HistoryPage({
   onDeleteCycle: (cycleId: string) => void
 }) {
   if (cards.length === 0) {
-    return <List listStyle="insetGrouped">
+    return <List listStyle="insetGroup">
       <HistoryEmpty />
     </List>
   }
 
-  return <List listStyle="insetGrouped">
+  return <List listStyle="insetGroup">
     {cards.map(card =>
       <Section>
         <DaySummaryRow card={card} />

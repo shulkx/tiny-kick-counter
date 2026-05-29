@@ -3,6 +3,7 @@ import {
   Color,
   HStack,
   Image,
+  SecureField,
   Spacer,
   Text,
   TextField,
@@ -177,7 +178,7 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
 
   function handleSaveToken() {
     setSeeyouToken(tokenText)
-    void Dialog.alert({ title: "已保存 Token", buttonLabel: "好" })
+    void Dialog.alert({ message: "已保存 Token", buttonLabel: "好" })
   }
 
   async function handleSync() {
@@ -187,15 +188,15 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
       const result = await syncSeeyou()
       setCache(readSeeyouCache())
       if (result.kind === "ok") {
-        void Dialog.alert({ title: "同步完成", message: `已同步 ${result.totalCount} 条记录`, buttonLabel: "好" })
+        void Dialog.alert({ message: `已同步 ${result.totalCount} 条记录`, title: "同步完成", buttonLabel: "好" })
       } else if (result.kind === "token_invalid") {
-        void Dialog.alert({ title: "Token 失效", message: "请重新获取 Token", buttonLabel: "好" })
+        void Dialog.alert({ message: "请重新获取 Token", title: "Token 失效", buttonLabel: "好" })
       } else if (result.kind === "network_error") {
-        void Dialog.alert({ title: "网络错误", message: result.message, buttonLabel: "好" })
+        void Dialog.alert({ message: result.message, title: "网络错误", buttonLabel: "好" })
       } else if (result.kind === "parse_error") {
-        void Dialog.alert({ title: "数据异常", message: result.message, buttonLabel: "好" })
+        void Dialog.alert({ message: result.message, title: "数据异常", buttonLabel: "好" })
       } else {
-        void Dialog.alert({ title: "同步失败", message: "未配置 Token", buttonLabel: "好" })
+        void Dialog.alert({ message: "未配置 Token", title: "同步失败", buttonLabel: "好" })
       }
       onRefresh?.()
     } finally {
@@ -220,8 +221,8 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
 
   function handleHelp() {
     void Dialog.alert({
-      title: "如何获取美柚 Token",
       message: "需要通过抓包工具获取美柚 App 请求中的 authorization 请求头。详见 README。",
+      title: "如何获取美柚 Token",
       buttonLabel: "知道了",
     })
   }
@@ -249,16 +250,14 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
       </Button>
     </HStack>
 
-    <Toggle isOn={cache.sync_enabled} onChanged={handleToggle} label="启用美柚同步" />
+    <Toggle value={cache.sync_enabled} onChanged={handleToggle} title="启用美柚同步" />
 
     <VStack alignment="leading" spacing={8}>
       <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>Token</Text>
-      <TextField
-        text={tokenText}
-        onChanged={setTokenText}
-        placeholder="粘贴美柚 authorization 头"
-        secure={!showToken}
-      />
+      {showToken
+        ? <TextField title="Token" value={tokenText} onChanged={setTokenText} prompt="粘贴美柚 authorization 头" />
+        : <SecureField title="Token" value={tokenText} onChanged={setTokenText} prompt="粘贴美柚 authorization 头" />
+      }
       <HStack spacing={10}>
         <Button action={() => setShowToken(!showToken)} buttonStyle="plain">
           <Text font="caption" foregroundStyle={themeColors.systemBlue}>{showToken ? "隐藏" : "显示"}</Text>
