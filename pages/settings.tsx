@@ -5,12 +5,24 @@ import {
   Image,
   Spacer,
   Text,
+  TextField,
+  Toggle,
   VStack,
+  useState,
 } from "scripting"
 import { cardShadow, roundedBackground, smallCardRadius, themeColors } from "../common/theme"
 import { DayCard } from "../common/types"
 import { summarizeDayCards } from "../common/stats"
 import { SummaryPill } from "./records"
+import {
+  getSeeyouToken,
+  setSeeyouToken,
+  clearSeeyouToken,
+  readSeeyouCache,
+  setSyncEnabled,
+  clearSeeyouData,
+  syncSeeyou,
+} from "../common/model"
 
 function PlainCircleIcon({
   systemName,
@@ -71,11 +83,13 @@ export function SettingsPage({
   onExport,
   onRestore,
   onReset,
+  onRefresh,
 }: {
   cards: DayCard[]
   onExport: () => void
   onRestore: () => void
   onReset: () => void
+  onRefresh?: () => void
 }) {
   const summary = summarizeDayCards(cards)
   return <VStack alignment="leading" spacing={14}>
@@ -135,5 +149,138 @@ export function SettingsPage({
       <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>• 推算 = 有效胎动 / 计数小时 × 12</Text>
       <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>• 手动提前结束的周期不参与普通统计</Text>
     </VStack>
+
+    <SeeyouSyncSection onRefresh={onRefresh} />
+  </VStack>
+}
+
+function formatSyncTime(ts: number): string {
+  const d = new Date(ts)
+  const now = new Date()
+  const prefix = d.toDateString() === now.toDateString() ? "今天" : `${d.getMonth() + 1}/${d.getDate()}`
+  const h = d.getHours().toString().padStart(2, "0")
+  const m = d.getMinutes().toString().padStart(2, "0")
+  return `${prefix} ${h}:${m}`
+}
+
+function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
+  const [cache, setCache] = useState(() => readSeeyouCache())
+  const [tokenText, setTokenText] = useState(() => getSeeyouToken() ?? "")
+  const [showToken, setShowToken] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  function handleToggle(enabled: boolean) {
+    const next = setSyncEnabled(enabled)
+    setCache(next)
+    onRefresh?.()
+  }
+
+  function handleSaveToken() {
+    setSeeyouToken(tokenText)
+    void Dialog.alert({ title: "已保存 Token", buttonLabel: "好" })
+  }
+
+  async function handleSync() {
+    if (isSyncing) return
+    setIsSyncing(true)
+    try {
+      const result = await syncSeeyou()
+      setCache(readSeeyouCache())
+      if (result.kind === "ok") {
+        void Dialog.alert({ title: "同步完成", message: `已同步 ${result.totalCount} 条记录`, buttonLabel: "好" })
+      } else if (result.kind === "token_invalid") {
+        void Dialog.alert({ title: "Token 失效", message: "请重新获取 Token", buttonLabel: "好" })
+      } else if (result.kind === "network_error") {
+        void Dialog.alert({ title: "网络错误", message: result.message, buttonLabel: "好" })
+      } else if (result.kind === "parse_error") {
+        void Dialog.alert({ title: "数据异常", message: result.message, buttonLabel: "好" })
+      } else {
+        void Dialog.alert({ title: "同步失败", message: "未配置 Token", buttonLabel: "好" })
+      }
+      onRefresh?.()
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  async function handleClear() {
+    const count = cache.cycles.length
+    const ok = await Dialog.confirm({
+      title: "清空美柚数据？",
+      message: `将清空 ${count} 条美柚记录，下次同步会重新下载完整历史，本机记录不受影响。`,
+      cancelLabel: "取消",
+      confirmLabel: "清空",
+    })
+    if (ok) {
+      const next = clearSeeyouData()
+      setCache(next)
+      onRefresh?.()
+    }
+  }
+
+  function handleHelp() {
+    void Dialog.alert({
+      title: "如何获取美柚 Token",
+      message: "需要通过抓包工具获取美柚 App 请求中的 authorization 请求头。详见 README。",
+      buttonLabel: "知道了",
+    })
+  }
+
+  const statusIcon = cache.last_sync_status === "ok" ? "✅" : cache.last_sync_status ? "❌" : ""
+  const statusLabel = cache.last_sync_status === "token_invalid" ? "Token 失效"
+    : cache.last_sync_status === "network_error" ? "网络错误"
+    : cache.last_sync_status === "parse_error" ? "数据异常"
+    : ""
+  const syncTimeStr = cache.last_sync_ts ? formatSyncTime(cache.last_sync_ts) : ""
+
+  return <VStack
+    alignment="leading"
+    spacing={10}
+    padding={16}
+    background={roundedBackground(themeColors.groupedCardBackground)}
+    foregroundStyle={themeColors.label}
+    shadow={cardShadow()}
+  >
+    <HStack>
+      <Text font="headline" fontWeight="medium">美柚同步</Text>
+      <Spacer />
+      <Button action={handleHelp} buttonStyle="plain">
+        <Image systemName="questionmark.circle" font={16} foregroundStyle={themeColors.systemBlue} />
+      </Button>
+    </HStack>
+
+    <Toggle isOn={cache.sync_enabled} onChanged={handleToggle} label="启用美柚同步" />
+
+    <VStack alignment="leading" spacing={8}>
+      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>Token</Text>
+      <TextField
+        text={tokenText}
+        onChanged={setTokenText}
+        placeholder="粘贴美柚 authorization 头"
+        secure={!showToken}
+      />
+      <HStack spacing={10}>
+        <Button action={() => setShowToken(!showToken)} buttonStyle="plain">
+          <Text font="caption" foregroundStyle={themeColors.systemBlue}>{showToken ? "隐藏" : "显示"}</Text>
+        </Button>
+        <Button action={handleSaveToken} buttonStyle="plain">
+          <Text font="caption" foregroundStyle={themeColors.systemBlue}>保存</Text>
+        </Button>
+      </HStack>
+    </VStack>
+
+    {cache.sync_enabled ? <VStack alignment="leading" spacing={8}>
+      {cache.last_sync_ts ? <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>
+        上次同步：{syncTimeStr} {statusIcon}{statusLabel ? ` ${statusLabel}` : ""}
+      </Text> : null}
+      <Button action={() => { void handleSync() }} buttonStyle="plain">
+        <Text font="subheadline" fontWeight="medium" foregroundStyle={themeColors.systemBlue}>
+          {isSyncing ? "同步中…" : "立即同步"}
+        </Text>
+      </Button>
+      <Button action={() => { void handleClear() }} buttonStyle="plain">
+        <Text font="subheadline" foregroundStyle={themeColors.systemRed}>清空美柚数据</Text>
+      </Button>
+    </VStack> : null}
   </VStack>
 }
