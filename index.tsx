@@ -82,8 +82,13 @@ function MainPage() {
     const handleScenePhase = (phase: "active" | "inactive" | "background") => {
       if (phase === "active") {
         invalidateSeeyouData()
+        rebuildDerivedCards()
         void autoSyncIfDue().then(result => {
-          if (result?.kind === "ok") { invalidateSeeyouData(); Widget.reloadAll() }
+          if (result?.kind === "ok") {
+            invalidateSeeyouData()
+            rebuildDerivedCards()
+            Widget.reloadAll()
+          }
         })
       }
     }
@@ -99,7 +104,9 @@ function MainPage() {
 
   function rebuildDerivedCards() {
     const freshState = loadStateWithLazyArchive()
-    const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
+    const freshCache = readSeeyouCache()
+    setSeeyouCache(freshCache)
+    const cycles = freshCache.sync_enabled ? freshCache.cycles : []
     setHistoryCards(buildDayCards(freshState, Infinity, cycles))
     setHistoryVersion(dataVersionRef.current)
     setSettingsCards(buildDayCards(freshState, RECENT_DAY_LIMIT, cycles))
