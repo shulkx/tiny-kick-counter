@@ -10,29 +10,47 @@
 
 **Validation command:** `scripting-ts project "Tiny Kick Counter" --check`
 
+**Note on `autoSyncIfDue`:** Both scenePhase active and Records `onAppear` may call it. This is safe because `shouldAutoSync` (in `seeyou/cache.ts`) gates on a minimum interval — no additional throttle logic is needed.
+
 ---
 
 ## Task 1: Add `buildTodayCard` to `common/stats.ts`
 
 **Files:**
 - Modify: `common/stats.ts`
+- Modify: `common/model.ts`
 - Test: `tests/stats_test.ts`
 
 - [ ] **Step 1: Write failing tests for `buildTodayCard`**
 
-Append to `tests/stats_test.ts`:
+Append to `tests/stats_test.ts`. Use a real timestamp that produces `"2026-05-26"` via `formatDayKey`:
 
 ```ts
-import { buildTodayCard } from "../common/stats"
+import { buildTodayCard, getTodayCard } from "../common/stats"
 import { formatDayKey } from "../utils/date"
 
 // --- buildTodayCard tests ---
 
+// Use a real timestamp for 2026-05-26 (matches test fixture day_key)
+// 2026-05-26T08:00:00Z = 1779854400000
+const TEST_TODAY_TS = 1779854400000
+const TEST_TODAY_KEY = formatDayKey(TEST_TODAY_TS)
+assert(TEST_TODAY_KEY === "2026-05-26", `TEST_TODAY_KEY should be 2026-05-26 but got ${TEST_TODAY_KEY}`)
+
+// Rebuild test state with realistic timestamps for 2026-05-26
+const perfState: FetalMovementState = {
+  schema_version: 1,
+  active_cycle: cycle("active", "2026-05-26", 1779854400000, 1, 2),
+  completed_cycles: [
+    cycle("valid", "2026-05-26", 1779850800000, 2, 3, "expired", true),
+    cycle("manual", "2026-05-26", 1779847200000, 9, 9, "manual", false),
+    cycle("old", "2026-05-25", 1779764400000, 1, 1, "expired", true),
+  ],
+}
+
 // Test 1: equivalence with buildDayCards for today
-const todayTs = 3000 // matches "2026-05-26" in test state
-const todayKey = "2026-05-26"
-const todayCard = buildTodayCard(state, todayTs)
-const todayFromFull = buildDayCards(state, Infinity).find(c => c.day_key === todayKey)
+const todayCard = buildTodayCard(perfState, TEST_TODAY_TS)
+const todayFromFull = buildDayCards(perfState, Infinity).find(c => c.day_key === "2026-05-26")
 assert(todayCard !== null, "buildTodayCard returns today card")
 assert(todayCard!.day_key === todayFromFull!.day_key, "day_key matches")
 assert(todayCard!.effective_total === todayFromFull!.effective_total, "effective_total matches")
@@ -41,7 +59,7 @@ assert(todayCard!.estimated_count === todayFromFull!.estimated_count, "estimated
 assert(todayCard!.cycles.length === todayFromFull!.cycles.length, "cycles count matches")
 
 // Test 2: returns null when no cycles match
-const noMatchCard = buildTodayCard(state, 99999999999999)
+const noMatchCard = buildTodayCard(perfState, 99999999999999)
 assert(noMatchCard === null, "buildTodayCard returns null for day with no cycles")
 
 // Test 3: key fallback — cycle without day_key uses formatDayKey(started_ts)
@@ -49,23 +67,22 @@ const noDayKeyState: FetalMovementState = {
   schema_version: 1,
   active_cycle: null,
   completed_cycles: [
-    { ...cycle("nodaykey", "", 2000, 3, 5, "expired", true), day_key: "" },
+    { ...cycle("nodaykey", "", 1779854400000, 3, 5, "expired", true), day_key: "" },
   ],
 }
-const fallbackTs = 2000
-const fallbackCard = buildTodayCard(noDayKeyState, fallbackTs)
+const fallbackCard = buildTodayCard(noDayKeyState, TEST_TODAY_TS)
 assert(fallbackCard !== null, "buildTodayCard handles missing day_key via fallback")
 assert(fallbackCard!.effective_total === 3, "fallback card has correct effective_total")
 
 // Test 4: seeyou cycles included
-const seeyouCycle = cycle("seeyou:123", "2026-05-26", 2500, 4, 8, "expired", true)
+const seeyouCycle = cycle("seeyou:123", "2026-05-26", 1779852000000, 4, 8, "expired", true)
 seeyouCycle.source = "seeyou"
-const withSeeyou = buildTodayCard(state, todayTs, [seeyouCycle])
+const withSeeyou = buildTodayCard(perfState, TEST_TODAY_TS, [seeyouCycle])
 assert(withSeeyou !== null, "buildTodayCard includes seeyou cycles")
 assert(withSeeyou!.effective_total === todayCard!.effective_total + 4, "seeyou effective added")
 
-// Test 5: equivalence of getTodayCard delegation
-const getTodayResult = getTodayCard(state, todayTs)
+// Test 5: getTodayCard delegates to buildTodayCard (equivalence with unlimited buildDayCards)
+const getTodayResult = getTodayCard(perfState, TEST_TODAY_TS)
 assert(getTodayResult !== null, "getTodayCard returns card")
 assert(getTodayResult!.effective_total === todayCard!.effective_total, "getTodayCard delegates to buildTodayCard")
 
@@ -134,15 +151,21 @@ import { buildDayCards, buildTodayCard, getTodayCard, selectWidgetRows, summariz
 Run: `scripting-ts project "Tiny Kick Counter" --check`
 Expected: PASS
 
-- [ ] **Step 7: Add re-export in `common/model.ts`**
+- [ ] **Step 7: Add re-exports in `common/model.ts`**
 
-Add to the re-exports in `common/model.ts`:
+Replace the existing stats export line with:
 
 ```ts
 export { buildDayCards, buildTodayCard, getTodayCard, selectWidgetRows, summarizeDayCards } from "./stats"
 ```
 
-(Replace the existing `buildDayCards, getTodayCard, selectWidgetRows, summarizeDayCards` export line.)
+Also add type re-export for `DayCard`:
+
+```ts
+export type { FetalMovementState, Cycle, DayCard } from "./types"
+```
+
+(Replace the existing `export type { FetalMovementState, Cycle } from "./types"` line.)
 
 - [ ] **Step 8: Run validation**
 
@@ -179,16 +202,24 @@ export function loadStateWithLazyArchiveDetailed(nowTs = Date.now()): { state: F
 }
 ```
 
-- [ ] **Step 2: Run validation**
+- [ ] **Step 2: Also re-export `RECENT_DAY_LIMIT` from `common/model.ts`**
+
+Add:
+
+```ts
+export { RECENT_DAY_LIMIT } from "./types"
+```
+
+- [ ] **Step 3: Run validation**
 
 Run: `scripting-ts project "Tiny Kick Counter" --check`
 Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add common/model.ts
-git commit -m "feat: add loadStateWithLazyArchiveDetailed
+git commit -m "feat: add loadStateWithLazyArchiveDetailed + re-export RECENT_DAY_LIMIT
 
 Returns { state, archived } so callers can detect lazy archival
 and invalidate derived data accordingly."
@@ -196,254 +227,17 @@ and invalidate derived data accordingly."
 
 ---
 
-## Task 3: Refactor `index.tsx` — lift state, split refresh, wire today card
+## Task 3: Refactor `index.tsx` and `pages/settings.tsx` together
+
+This task modifies both files atomically so that every commit passes validation.
 
 **Files:**
 - Modify: `index.tsx`
-
-- [ ] **Step 1: Update imports**
-
-Replace the import block from `./common/model`:
-
-```ts
-import {
-  autoSyncIfDue,
-  buildTodayCard,
-  closeCycle,
-  createBackupFile,
-  deleteCycle,
-  loadStateWithLazyArchive,
-  loadStateWithLazyArchiveDetailed,
-  readSeeyouCache,
-  recordMovement,
-  resetState,
-  restoreBackupFromFile,
-  themeColors,
-  buildDayCards,
-  RECENT_DAY_LIMIT,
-} from "./common/model"
-import type { FetalMovementState, DayCard } from "./common/model"
-```
-
-Also add `RECENT_DAY_LIMIT` to the re-exports in `common/model.ts` if not already present (re-export from `./types`).
-
-- [ ] **Step 2: Add new state variables**
-
-After the existing state declarations in `MainPage`, add:
-
-```ts
-const [seeyouCache, setSeeyouCache] = useState(() => readSeeyouCache())
-const [dataVersion, setDataVersion] = useState(0)
-const [historyCards, setHistoryCards] = useState<DayCard[]>([])
-const [historyVersion, setHistoryVersion] = useState(-1)
-const [settingsCards, setSettingsCards] = useState<DayCard[]>([])
-const [settingsVersion, setSettingsVersion] = useState(-1)
-```
-
-- [ ] **Step 3: Implement three-tier refresh**
-
-Replace the existing `refresh` function with:
-
-```ts
-function refreshView(message?: string): { archived: boolean } {
-  const now = Date.now()
-  setNowTs(now)
-  const result = loadStateWithLazyArchiveDetailed(now)
-  setState(result.state)
-  if (message) {
-    setToastMessage(message)
-    setShowToast(true)
-  }
-  if (result.archived) {
-    setDataVersion(v => v + 1)
-  }
-  return { archived: result.archived }
-}
-
-function invalidateData(message?: string) {
-  refreshView(message)
-  setDataVersion(v => v + 1)
-}
-
-function invalidateSeeyouData(message?: string) {
-  refreshView(message)
-  setSeeyouCache(readSeeyouCache())
-  setDataVersion(v => v + 1)
-}
-```
-
-- [ ] **Step 4: Update `handleManualRefresh`**
-
-```ts
-function handleManualRefresh() {
-  invalidateSeeyouData("已刷新页面并请求更新小组件。")
-  Widget.reloadAll()
-}
-```
-
-- [ ] **Step 5: Update action handlers to use `invalidateData`**
-
-For `handleRecord`, `handleConfirmedCloseCycle`, `handleReset`, `handleRestore`: replace `refresh(...)` calls with `invalidateData(...)`.
-
-For `handleDeleteCycle`: replace `refresh(...)` with `invalidateData(...)`, then immediately recompute `historyCards`:
-
-```ts
-async function handleDeleteCycle(cycleId: string) {
-  if (cycleId.startsWith("seeyou:")) return
-  const ok = await Dialog.confirm({
-    title: "确认删除此周期？",
-    message: "删除后不可恢复。",
-    cancelLabel: "取消",
-    confirmLabel: "删除",
-  })
-  if (ok) {
-    deleteCycle(cycleId)
-    invalidateData("已删除该周期。")
-    // Immediately recompute history cards for in-page update
-    const freshState = loadStateWithLazyArchive()
-    const seeyouCycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
-    setHistoryCards(buildDayCards(freshState, Infinity, seeyouCycles))
-    setHistoryVersion(dataVersion + 1)
-    Widget.reloadAll()
-  }
-}
-```
-
-- [ ] **Step 6: Update `useEffect` for scenePhase**
-
-Replace `refresh()` with `invalidateSeeyouData()`:
-
-```ts
-useEffect(() => {
-  const handleScenePhase = (phase: "active" | "inactive" | "background") => {
-    if (phase === "active") {
-      invalidateSeeyouData()
-      void autoSyncIfDue().then(result => {
-        if (result?.kind === "ok") { invalidateSeeyouData(); Widget.reloadAll() }
-      })
-    }
-  }
-  AppEvents.scenePhase.addListener(handleScenePhase)
-  return () => AppEvents.scenePhase.removeListener(handleScenePhase)
-}, [])
-```
-
-- [ ] **Step 7: Replace render-path computations**
-
-Remove the old `seeyouCache`, `seeyouCycles`, `cards`, `allCards`, `todayCards` lines (lines 149-154). Replace with:
-
-```ts
-const seeyouCycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
-const todayCard = buildTodayCard(state, nowTs, seeyouCycles)
-const todayCards = todayCard ? [todayCard] : []
-```
-
-- [ ] **Step 8: Update Records tab `onAppear`**
-
-Replace `refresh()` with `refreshView()` in the ScrollView `onAppear`:
-
-```ts
-onAppear={() => {
-  refreshView()
-  void autoSyncIfDue().then(result => {
-    if (result?.kind === "ok") { invalidateSeeyouData(); Widget.reloadAll() }
-  })
-}}
-```
-
-- [ ] **Step 9: Update History tab `onAppear`**
-
-```ts
-onAppear={() => {
-  refreshView()
-  if (historyVersion !== dataVersion) {
-    const freshState = loadStateWithLazyArchive()
-    const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
-    setHistoryCards(buildDayCards(freshState, Infinity, cycles))
-    setHistoryVersion(dataVersion)
-  }
-}}
-```
-
-- [ ] **Step 10: Update History tab to pass `historyCards`**
-
-Change `<HistoryPage cards={allCards} ...>` to `<HistoryPage cards={historyCards} ...>`.
-
-- [ ] **Step 11: Update Settings tab `onAppear`**
-
-```ts
-onAppear={() => {
-  refreshView()
-  if (settingsVersion !== dataVersion) {
-    const freshState = loadStateWithLazyArchive()
-    const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
-    setSettingsCards(buildDayCards(freshState, RECENT_DAY_LIMIT, cycles))
-    setSettingsVersion(dataVersion)
-  }
-}}
-```
-
-- [ ] **Step 12: Add `handleSeeyouDataChanged` and update Settings props**
-
-```ts
-function handleSeeyouDataChanged(message?: string) {
-  invalidateSeeyouData(message)
-  const freshState = loadStateWithLazyArchive()
-  const freshCache = readSeeyouCache()
-  const cycles = freshCache.sync_enabled ? freshCache.cycles : []
-  setSettingsCards(buildDayCards(freshState, RECENT_DAY_LIMIT, cycles))
-  setSettingsVersion(dataVersion + 1)
-}
-```
-
-Update `<SettingsPage>` props:
-
-```tsx
-<SettingsPage
-  cards={settingsCards}
-  onExport={() => { void handleExport() }}
-  onRestore={() => setConfirmAction("restore")}
-  onReset={() => setConfirmAction("reset")}
-  onSeeyouDataChanged={handleSeeyouDataChanged}
-/>
-```
-
-- [ ] **Step 13: Ensure `RECENT_DAY_LIMIT` is re-exported from `common/model.ts`**
-
-Add to `common/model.ts`:
-
-```ts
-export { RECENT_DAY_LIMIT } from "./types"
-```
-
-- [ ] **Step 14: Run validation**
-
-Run: `scripting-ts project "Tiny Kick Counter" --check`
-Expected: May fail due to `SettingsPage` interface mismatch (fixed in next task).
-
-- [ ] **Step 15: Commit (WIP if settings not yet updated)**
-
-```bash
-git add index.tsx common/model.ts
-git commit -m "refactor: split refresh into three tiers, lazy history/settings cards
-
-- refreshView: lightweight, no seeyou disk read
-- invalidateData: local mutations only
-- invalidateSeeyouData: seeyou mutations + manual refresh
-- Records tab uses buildTodayCard only
-- History/settings cards computed lazily via dataVersion"
-```
-
----
-
-## Task 4: Update `pages/settings.tsx` — accept `onSeeyouDataChanged`
-
-**Files:**
 - Modify: `pages/settings.tsx`
 
-- [ ] **Step 1: Update `SettingsPage` props interface**
+- [ ] **Step 1: Update `pages/settings.tsx` props interface**
 
-Replace `onRefresh?: () => void` with `onSeeyouDataChanged?: (message?: string) => void`:
+Replace `onRefresh?: () => void` with `onSeeyouDataChanged?: (message?: string) => void` in `SettingsPage`:
 
 ```ts
 export function SettingsPage({
@@ -461,71 +255,275 @@ export function SettingsPage({
 }) {
 ```
 
-- [ ] **Step 2: Update `SeeyouSyncSection` prop**
-
-Change `onRefresh` to `onSeeyouDataChanged` in `SeeyouSyncSection`:
+Update `SeeyouSyncSection`:
 
 ```ts
 function SeeyouSyncSection({ onSeeyouDataChanged }: { onSeeyouDataChanged?: (message?: string) => void }) {
 ```
 
-- [ ] **Step 3: Replace `onRefresh?.()` calls with `onSeeyouDataChanged?.()`**
+Replace all `onRefresh?.()` with `onSeeyouDataChanged?.()` in `handleToggle`, `handleSync`, `handleClear`.
 
-In `handleToggle`:
-```ts
-function handleToggle(enabled: boolean) {
-  const next = setSyncEnabled(enabled)
-  setCache(next)
-  onSeeyouDataChanged?.()
-  Widget.reloadAll()
-}
-```
-
-In `handleSync` (after sync completes):
-```ts
-onSeeyouDataChanged?.()
-Widget.reloadAll()
-```
-
-In `handleClear`:
-```ts
-if (ok) {
-  const next = clearSeeyouData()
-  setCache(next)
-  onSeeyouDataChanged?.()
-  Widget.reloadAll()
-}
-```
-
-- [ ] **Step 4: Update `SeeyouSyncSection` usage in `SettingsPage`**
+Update usage:
 
 ```tsx
 <SeeyouSyncSection onSeeyouDataChanged={onSeeyouDataChanged} />
 ```
 
-- [ ] **Step 5: Run validation**
+- [ ] **Step 2: Update `index.tsx` imports**
+
+Replace the import block from `./common/model`:
+
+```ts
+import {
+  autoSyncIfDue,
+  buildDayCards,
+  buildTodayCard,
+  closeCycle,
+  createBackupFile,
+  deleteCycle,
+  loadStateWithLazyArchive,
+  loadStateWithLazyArchiveDetailed,
+  readSeeyouCache,
+  RECENT_DAY_LIMIT,
+  recordMovement,
+  resetState,
+  restoreBackupFromFile,
+  themeColors,
+} from "./common/model"
+import type { FetalMovementState, DayCard } from "./common/model"
+```
+
+- [ ] **Step 3: Add new state variables in `MainPage`**
+
+After the existing state declarations:
+
+```ts
+const [seeyouCache, setSeeyouCache] = useState(() => readSeeyouCache())
+const [dataVersion, setDataVersion] = useState(0)
+const [historyCards, setHistoryCards] = useState<DayCard[]>([])
+const [historyVersion, setHistoryVersion] = useState(-1)
+const [settingsCards, setSettingsCards] = useState<DayCard[]>([])
+const [settingsVersion, setSettingsVersion] = useState(-1)
+```
+
+- [ ] **Step 4: Implement three-tier refresh**
+
+`refreshView` returns `{ archived }` — it does NOT bump version itself. Callers decide.
+
+Replace the existing `refresh` function with:
+
+```ts
+function refreshView(message?: string): { archived: boolean } {
+  const now = Date.now()
+  setNowTs(now)
+  const result = loadStateWithLazyArchiveDetailed(now)
+  setState(result.state)
+  if (message) {
+    setToastMessage(message)
+    setShowToast(true)
+  }
+  return { archived: result.archived }
+}
+
+function invalidateData(message?: string) {
+  refreshView(message)
+  setDataVersion(v => v + 1)
+}
+
+function invalidateSeeyouData(message?: string) {
+  refreshView(message)
+  setSeeyouCache(readSeeyouCache())
+  setDataVersion(v => v + 1)
+}
+```
+
+- [ ] **Step 5: Update `handleManualRefresh`**
+
+```ts
+function handleManualRefresh() {
+  invalidateSeeyouData("已刷新页面并请求更新小组件。")
+  Widget.reloadAll()
+}
+```
+
+- [ ] **Step 6: Update action handlers**
+
+For `handleRecord`, `handleConfirmedCloseCycle`, `handleReset`, `handleRestore`: replace `refresh(...)` calls with `invalidateData(...)`.
+
+For `handleDeleteCycle`:
+
+```ts
+async function handleDeleteCycle(cycleId: string) {
+  if (cycleId.startsWith("seeyou:")) return
+  const ok = await Dialog.confirm({
+    title: "确认删除此周期？",
+    message: "删除后不可恢复。",
+    cancelLabel: "取消",
+    confirmLabel: "删除",
+  })
+  if (ok) {
+    deleteCycle(cycleId)
+    invalidateData("已删除该周期。")
+    // Immediately recompute history for in-page update
+    const freshState = loadStateWithLazyArchive()
+    const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
+    setHistoryCards(buildDayCards(freshState, Infinity, cycles))
+    setHistoryVersion(v => v + 1)
+    Widget.reloadAll()
+  }
+}
+```
+
+Note: `setHistoryVersion(v => v + 1)` uses the updater form to stay in sync with the just-bumped `dataVersion`. Since both use `v => v + 1` updaters, they will be consistent within the same render batch.
+
+- [ ] **Step 7: Update `useEffect` for scenePhase**
+
+```ts
+useEffect(() => {
+  const handleScenePhase = (phase: "active" | "inactive" | "background") => {
+    if (phase === "active") {
+      invalidateSeeyouData()
+      void autoSyncIfDue().then(result => {
+        if (result?.kind === "ok") { invalidateSeeyouData(); Widget.reloadAll() }
+      })
+    }
+  }
+  AppEvents.scenePhase.addListener(handleScenePhase)
+  return () => AppEvents.scenePhase.removeListener(handleScenePhase)
+}, [])
+```
+
+- [ ] **Step 8: Replace render-path computations**
+
+Remove the old lines (149-154 area). Replace with:
+
+```ts
+const seeyouCycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
+const todayCard = buildTodayCard(state, nowTs, seeyouCycles)
+const todayCards = todayCard ? [todayCard] : []
+```
+
+- [ ] **Step 9: Update Records tab `onAppear`**
+
+```ts
+onAppear={() => {
+  const { archived } = refreshView()
+  if (archived) {
+    // Lazy archive happened — derived cards are now stale
+    // dataVersion was NOT bumped by refreshView; bump here
+    setDataVersion(v => v + 1)
+  }
+  void autoSyncIfDue().then(result => {
+    if (result?.kind === "ok") { invalidateSeeyouData(); Widget.reloadAll() }
+  })
+}}
+```
+
+- [ ] **Step 10: Update History tab `onAppear`**
+
+```ts
+onAppear={() => {
+  const { archived } = refreshView()
+  const stale = archived || historyVersion !== dataVersion
+  if (stale) {
+    if (archived) setDataVersion(v => v + 1)
+    const freshState = loadStateWithLazyArchive()
+    const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
+    setHistoryCards(buildDayCards(freshState, Infinity, cycles))
+    setHistoryVersion(v => v + 1)
+  }
+}}
+```
+
+- [ ] **Step 11: Update History tab to pass `historyCards`**
+
+Change `<HistoryPage cards={allCards} ...>` to `<HistoryPage cards={historyCards} ...>`.
+
+- [ ] **Step 12: Update Settings tab `onAppear`**
+
+```ts
+onAppear={() => {
+  const { archived } = refreshView()
+  const stale = archived || settingsVersion !== dataVersion
+  if (stale) {
+    if (archived) setDataVersion(v => v + 1)
+    const freshState = loadStateWithLazyArchive()
+    const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
+    setSettingsCards(buildDayCards(freshState, RECENT_DAY_LIMIT, cycles))
+    setSettingsVersion(v => v + 1)
+  }
+}}
+```
+
+- [ ] **Step 13: Add `handleSeeyouDataChanged` and update Settings props**
+
+```ts
+function handleSeeyouDataChanged(message?: string) {
+  invalidateSeeyouData(message)
+  // Immediately recompute settings cards for in-page update
+  const freshState = loadStateWithLazyArchive()
+  const freshCache = readSeeyouCache()
+  const cycles = freshCache.sync_enabled ? freshCache.cycles : []
+  setSettingsCards(buildDayCards(freshState, RECENT_DAY_LIMIT, cycles))
+  setSettingsVersion(v => v + 1)
+}
+```
+
+Update `<SettingsPage>` props:
+
+```tsx
+<SettingsPage
+  cards={settingsCards}
+  onExport={() => { void handleExport() }}
+  onRestore={() => setConfirmAction("restore")}
+  onReset={() => setConfirmAction("reset")}
+  onSeeyouDataChanged={handleSeeyouDataChanged}
+/>
+```
+
+- [ ] **Step 14: Run validation**
 
 Run: `scripting-ts project "Tiny Kick Counter" --check`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 15: Commit**
 
 ```bash
-git add pages/settings.tsx
-git commit -m "refactor: settings accepts onSeeyouDataChanged callback
+git add index.tsx pages/settings.tsx common/model.ts
+git commit -m "refactor: split refresh into three tiers, lazy history/settings cards
 
-Replaces onRefresh. Parent (MainPage) handles seeyou cache reload
-and settingsCards recomputation."
+- refreshView: returns { archived }, no version bump, no seeyou read
+- invalidateData: local mutations only
+- invalidateSeeyouData: seeyou mutations + manual refresh
+- Records tab uses buildTodayCard only
+- History/settings cards computed lazily via dataVersion
+- Settings accepts onSeeyouDataChanged callback"
 ```
 
 ---
 
-## Task 5: Add pagination to `pages/history.tsx`
+## Task 4: Add pagination to `pages/history.tsx`
 
 **Files:**
 - Modify: `pages/history.tsx`
 
-- [ ] **Step 1: Add pagination state and render logic**
+- [ ] **Step 1: Add `useState` to imports**
+
+```ts
+import {
+  Button,
+  HStack,
+  Label,
+  List,
+  Section,
+  Spacer,
+  Text,
+  VStack,
+  useState,
+} from "scripting"
+```
+
+- [ ] **Step 2: Add pagination state and render logic**
 
 Update `HistoryPage`:
 
@@ -579,22 +577,6 @@ export function HistoryPage({
 }
 ```
 
-- [ ] **Step 2: Add `useState` to imports**
-
-```ts
-import {
-  Button,
-  HStack,
-  Label,
-  List,
-  Section,
-  Spacer,
-  Text,
-  VStack,
-  useState,
-} from "scripting"
-```
-
 - [ ] **Step 3: Run validation**
 
 Run: `scripting-ts project "Tiny Kick Counter" --check`
@@ -612,7 +594,7 @@ see older history, avoiding 900+ row render on mount."
 
 ---
 
-## Task 6: Final validation and cleanup
+## Task 5: Final validation and cleanup
 
 **Files:**
 - All modified files
@@ -624,11 +606,11 @@ Expected: PASS with no errors.
 
 - [ ] **Step 2: Verify no unused imports in `index.tsx`**
 
-Check that old imports like `buildDayCards` are still needed (used in history/settings recomputation within `index.tsx`). Remove any that are no longer used.
+Check that `buildDayCards` is still needed (used in history/settings recomputation). Check that `loadStateWithLazyArchive` is still needed (used in `onAppear` fresh-read). Remove `formatDayKey` import from `index.tsx` if no longer used (today key computation moved into `buildTodayCard`).
 
 - [ ] **Step 3: Verify `widget.tsx` still compiles**
 
-`widget.tsx` uses `getTodayCard` which now delegates to `buildTodayCard`. No interface change needed — just confirm it still passes validation.
+`widget.tsx` uses `getTodayCard` which now delegates to `buildTodayCard`. No interface change — just confirm validation passes.
 
 - [ ] **Step 4: Commit cleanup if any**
 
@@ -636,7 +618,3 @@ Check that old imports like `buildDayCards` are still needed (used in history/se
 git add -A
 git commit -m "chore: cleanup unused imports after performance refactor"
 ```
-
-- [ ] **Step 5: Tag completion**
-
-No tag needed — this is an internal optimization, not a version bump.
