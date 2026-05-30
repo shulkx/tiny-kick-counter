@@ -17,6 +17,7 @@ export { createBackupFile }
 export { buildDayCards, buildTodayCard, getTodayCard, selectWidgetRows, summarizeDayCards } from "./stats"
 export { roundedBackground, themeColors, widgetCardRadius } from "./theme"
 export type { FetalMovementState, Cycle, DayCard } from "./types"
+export { RECENT_DAY_LIMIT } from "./types"
 export { syncSeeyou, autoSyncIfDue } from "../seeyou/sync"
 export { readSeeyouCache, saveSeeyouCache, setSyncEnabled, clearSeeyouData, shouldAutoSync } from "../seeyou/cache"
 export { getSeeyouToken, setSeeyouToken, clearSeeyouToken, hasSeeyouToken } from "../seeyou/token"
@@ -114,6 +115,13 @@ export function loadStateWithLazyArchive(nowTs = Date.now()): FetalMovementState
   const archived = archiveExpiredCycleIfNeeded(state, nowTs)
   if (archived) saveState(state)
   return state
+}
+
+export function loadStateWithLazyArchiveDetailed(nowTs = Date.now()): { state: FetalMovementState; archived: boolean } {
+  const { state } = readState()
+  const archived = archiveExpiredCycleIfNeeded(state, nowTs)
+  if (archived) saveState(state)
+  return { state, archived: archived !== null }
 }
 
 export async function recordMovement(eventTs: number, source: Source): Promise<CommandResult> {
