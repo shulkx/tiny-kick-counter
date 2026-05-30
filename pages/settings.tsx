@@ -85,13 +85,13 @@ export function SettingsPage({
   onExport,
   onRestore,
   onReset,
-  onRefresh,
+  onSeeyouDataChanged,
 }: {
   cards: DayCard[]
   onExport: () => void
   onRestore: () => void
   onReset: () => void
-  onRefresh?: () => void
+  onSeeyouDataChanged?: (message?: string) => void
 }) {
   const summary = summarizeDayCards(cards)
   return <VStack alignment="leading" spacing={14}>
@@ -137,7 +137,7 @@ export function SettingsPage({
       <SettingsActionRow title="重置全部数据" subtitle="清空当前周期和全部历史记录，不能撤销" systemImage="trash.fill" tint={themeColors.systemRed} destructive action={onReset} />
     </VStack>
 
-    <SeeyouSyncSection onRefresh={onRefresh} />
+    <SeeyouSyncSection onSeeyouDataChanged={onSeeyouDataChanged} />
   </VStack>
 }
 
@@ -150,7 +150,7 @@ function formatSyncTime(ts: number): string {
   return `${prefix} ${h}:${m}`
 }
 
-function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
+function SeeyouSyncSection({ onSeeyouDataChanged }: { onSeeyouDataChanged?: (message?: string) => void }) {
   const [cache, setCache] = useState(() => readSeeyouCache())
   const [tokenText, setTokenText] = useState(() => getSeeyouToken() ?? "")
   const [showToken, setShowToken] = useState(false)
@@ -159,7 +159,7 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
   function handleToggle(enabled: boolean) {
     const next = setSyncEnabled(enabled)
     setCache(next)
-    onRefresh?.()
+    onSeeyouDataChanged?.()
     Widget.reloadAll()
   }
 
@@ -185,7 +185,7 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
       } else {
         void Dialog.alert({ message: "未配置 Token", title: "同步失败", buttonLabel: "好" })
       }
-      onRefresh?.()
+      onSeeyouDataChanged?.()
       Widget.reloadAll()
     } finally {
       setIsSyncing(false)
@@ -203,7 +203,7 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
     if (ok) {
       const next = clearSeeyouData()
       setCache(next)
-      onRefresh?.()
+      onSeeyouDataChanged?.()
       Widget.reloadAll()
     }
   }

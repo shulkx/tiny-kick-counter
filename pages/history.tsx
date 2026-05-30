@@ -8,6 +8,7 @@ import {
   Spacer,
   Text,
   VStack,
+  useState,
 } from "scripting"
 import { themeColors } from "../common/theme"
 import { Cycle, DayCard } from "../common/types"
@@ -90,6 +91,8 @@ function HistoryEmpty() {
   </VStack>
 }
 
+const PAGE_SIZE = 20
+
 export function HistoryPage({
   cards,
   onDeleteCycle,
@@ -97,6 +100,10 @@ export function HistoryPage({
   cards: DayCard[]
   onDeleteCycle: (cycleId: string) => void
 }) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const visibleCards = cards.slice(0, visibleCount)
+  const hasMore = visibleCount < cards.length
+
   if (cards.length === 0) {
     return <List listStyle="insetGroup">
       <HistoryEmpty />
@@ -104,7 +111,7 @@ export function HistoryPage({
   }
 
   return <List listStyle="insetGroup">
-    {cards.map(card =>
+    {visibleCards.map(card =>
       <Section>
         <DaySummaryRow card={card} />
         {card.cycles.map(cycle =>
@@ -115,5 +122,19 @@ export function HistoryPage({
         )}
       </Section>
     )}
+    {hasMore
+      ? <Section>
+          <Button
+            action={() => setVisibleCount(v => v + PAGE_SIZE)}
+            buttonStyle="plain"
+          >
+            <HStack frame={{ maxWidth: "infinity" }} padding={12}>
+              <Text font="subheadline" foregroundStyle={themeColors.systemBlue}>
+                加载更多（剩余 {cards.length - visibleCount} 天）
+              </Text>
+            </HStack>
+          </Button>
+        </Section>
+      : null}
   </List>
 }

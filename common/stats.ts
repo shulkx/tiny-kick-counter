@@ -50,10 +50,36 @@ export function summarizeDayCards(cards: DayCard[]): { recordDays: number; cycle
   }
 }
 
+export function buildTodayCard(
+  state: FetalMovementState,
+  nowTs: number,
+  seeyouCycles: Cycle[] = [],
+): DayCard | null {
+  const todayKey = formatDayKey(nowTs)
+  const allCycles = [...getVisibleCycles(state), ...seeyouCycles]
+  const todayCycles = allCycles.filter(cycle => {
+    const key = cycle.day_key || formatDayKey(cycle.started_ts)
+    return key === todayKey
+  })
+  if (todayCycles.length === 0) return null
+  const sorted = todayCycles.slice().sort((a, b) => b.started_ts - a.started_ts)
+  const counted_hours = sorted.length
+  const effective_total = sorted.reduce((sum, c) => sum + c.effective_count, 0)
+  const total_clicks = sorted.reduce((sum, c) => sum + c.total_count, 0)
+  const estimated_count = counted_hours > 0 ? Math.round((effective_total / counted_hours) * ESTIMATE_HOURS) : 0
+  return {
+    day_key: todayKey,
+    cycles: sorted,
+    counted_hours,
+    effective_total,
+    total_clicks,
+    estimated_count,
+    has_active_cycle: sorted.some(isLocalActive),
+  }
+}
+
 export function getTodayCard(state: FetalMovementState, nowTs = Date.now(), seeyouCycles: Cycle[] = []): DayCard | null {
-  const today = formatDayKey(nowTs)
-  const found = buildDayCards(state, RECENT_DAY_LIMIT, seeyouCycles).find(card => card.day_key === today)
-  return found ? found : null
+  return buildTodayCard(state, nowTs, seeyouCycles)
 }
 
 export function selectWidgetRows(card: DayCard | null, maxRows = 2): { rows: WidgetCycleRow[]; hiddenCount: number } {
