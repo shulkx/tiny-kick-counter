@@ -99,6 +99,7 @@ jobs:
 
           cp -R common dist/package/
           cp -R pages dist/package/
+          cp -R seeyou dist/package/
           cp -R utils dist/package/
 
       - name: Create zip

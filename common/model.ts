@@ -16,7 +16,11 @@ import { createBackupFile, defaultState, parseBackupJson, readState, restoreFrom
 export { createBackupFile }
 export { buildDayCards, getTodayCard, selectWidgetRows, summarizeDayCards } from "./stats"
 export { roundedBackground, themeColors, widgetCardRadius } from "./theme"
-export type { FetalMovementState } from "./types"
+export type { FetalMovementState, Cycle } from "./types"
+export { syncSeeyou, autoSyncIfDue } from "../seeyou/sync"
+export { readSeeyouCache, saveSeeyouCache, setSyncEnabled, clearSeeyouData, shouldAutoSync } from "../seeyou/cache"
+export { getSeeyouToken, setSeeyouToken, clearSeeyouToken, hasSeeyouToken } from "../seeyou/token"
+export { SEEYOU_AUTO_SYNC_MIN_INTERVAL_MS } from "../seeyou/types"
 
 export async function resetState(): Promise<CommandResult> {
   const nowTs = Date.now()

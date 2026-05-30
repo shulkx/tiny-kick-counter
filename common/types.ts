@@ -4,7 +4,9 @@ export const FUTURE_TOLERANCE_MS = 2 * 60 * 1000
 export const RECENT_DAY_LIMIT = 30
 export const ESTIMATE_HOURS = 12
 
-export type Source = "shortcut" | "widget" | "app" | "unknown"
+export type Source = "shortcut" | "widget" | "app" | "unknown" | "seeyou"
+export const SEEYOU_SOURCE: Source = "seeyou"
+export const SEEYOU_CYCLE_ID_PREFIX = "seeyou:"
 export type CloseReason = "expired" | "manual"
 export type Command = "record" | "close_cycle" | "status" | "export" | "restore" | "reset"
 export type BackupSource = "manual" | "shortcut" | "auto"

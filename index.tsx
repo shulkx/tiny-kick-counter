@@ -14,11 +14,13 @@ import {
   useState,
 } from "scripting"
 import {
+  autoSyncIfDue,
   buildDayCards,
   closeCycle,
   createBackupFile,
   deleteCycle,
   loadStateWithLazyArchive,
+  readSeeyouCache,
   recordMovement,
   resetState,
   restoreBackupFromFile,
@@ -50,7 +52,12 @@ function MainPage() {
 
   useEffect(() => {
     const handleScenePhase = (phase: "active" | "inactive" | "background") => {
-      if (phase === "active") refresh()
+      if (phase === "active") {
+        refresh()
+        void autoSyncIfDue().then(result => {
+          if (result?.kind === "ok") { refresh(); Widget.reloadAll() }
+        })
+      }
     }
     AppEvents.scenePhase.addListener(handleScenePhase)
     return () => AppEvents.scenePhase.removeListener(handleScenePhase)
@@ -118,6 +125,7 @@ function MainPage() {
   }
 
   async function handleDeleteCycle(cycleId: string) {
+    if (cycleId.startsWith("seeyou:")) return
     const ok = await Dialog.confirm({
       title: "确认删除此周期？",
       message: "删除后不可恢复。",
@@ -138,8 +146,10 @@ function MainPage() {
     Widget.reloadAll()
   }
 
-  const cards = buildDayCards(state)
-  const allCards = buildDayCards(state, Infinity)
+  const seeyouCache = readSeeyouCache()
+  const seeyouCycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
+  const cards = buildDayCards(state, undefined, seeyouCycles)
+  const allCards = buildDayCards(state, Infinity, seeyouCycles)
   const todayKey = formatDayKey(nowTs)
   const todayCards = cards.filter(card => card.day_key === todayKey)
 
@@ -148,12 +158,26 @@ function MainPage() {
     <Tab title="记录" systemImage="heart.text.square">
       <NavigationStack>
         <ScrollView
-          onAppear={() => refresh()}
+          onAppear={() => {
+            refresh()
+            void autoSyncIfDue().then(result => {
+              if (result?.kind === "ok") { refresh(); Widget.reloadAll() }
+            })
+          }}
           navigationTitle="胎动记录"
           navigationBarTitleDisplayMode="inline"
           toolbar={{
             cancellationAction: <Button title="关闭" action={dismiss} />,
-            primaryAction: <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
+            topBarTrailing: [
+              <Button title="说明" systemImage="info.circle" action={() => {
+                void Dialog.alert({
+                  message: "• 1 小时为一个计数周期\n• 首次记录自动开始周期\n• 5 分钟内连续点击计为子胎动\n• ≥ 5 分钟视为新的有效胎动\n• 手动提前结束的周期不参与统计",
+                  title: "计数规则",
+                  buttonLabel: "知道了",
+                })
+              }} />,
+              <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
+            ],
           }}
           confirmationDialog={{
             title: "停止本次记录？",
@@ -257,6 +281,7 @@ function MainPage() {
               onExport={() => { void handleExport() }}
               onRestore={() => setConfirmAction("restore")}
               onReset={() => setConfirmAction("reset")}
+              onRefresh={() => refresh()}
             />
           </VStack>
         </ScrollView>
