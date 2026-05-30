@@ -9,6 +9,7 @@ import {
   TextField,
   Toggle,
   VStack,
+  Widget,
   useState,
 } from "scripting"
 import { cardShadow, roundedBackground, smallCardRadius, themeColors } from "../common/theme"
@@ -159,6 +160,7 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
     const next = setSyncEnabled(enabled)
     setCache(next)
     onRefresh?.()
+    Widget.reloadAll()
   }
 
   function handleSaveToken() {

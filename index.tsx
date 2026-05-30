@@ -158,7 +158,12 @@ function MainPage() {
     <Tab title="记录" systemImage="heart.text.square">
       <NavigationStack>
         <ScrollView
-          onAppear={() => refresh()}
+          onAppear={() => {
+            refresh()
+            void autoSyncIfDue().then(result => {
+              if (result?.kind === "ok") refresh()
+            })
+          }}
           navigationTitle="胎动记录"
           navigationBarTitleDisplayMode="inline"
           toolbar={{
