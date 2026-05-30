@@ -103,7 +103,7 @@ export function SettingsPage({
       shadow={cardShadow()}
     >
       <Text font="title3" fontWeight="medium">设置</Text>
-      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>管理数据、备份与计数规则</Text>
+      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>管理数据与备份</Text>
     </VStack>
 
     <VStack
@@ -134,21 +134,6 @@ export function SettingsPage({
       <SettingsActionRow title="导出备份" subtitle="保存当前胎动数据 JSON 文件" systemImage="square.and.arrow.up" tint="systemBlue" action={onExport} />
       <SettingsActionRow title="从备份恢复" subtitle="选择 JSON 备份；恢复前会自动安全备份" systemImage="arrow.clockwise.icloud" tint="systemGreen" action={onRestore} />
       <SettingsActionRow title="重置全部数据" subtitle="清空当前周期和全部历史记录，不能撤销" systemImage="trash.fill" tint={themeColors.systemRed} destructive action={onReset} />
-    </VStack>
-
-    <VStack
-      alignment="leading"
-      spacing={8}
-      padding={16}
-      background={roundedBackground(themeColors.groupedCardBackground)}
-      foregroundStyle={themeColors.label}
-      shadow={cardShadow()}
-    >
-      <Text font="headline" fontWeight="medium">计数规则</Text>
-      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>• 1 小时为一个计数周期</Text>
-      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>• 5 分钟内连续点击计为子胎动</Text>
-      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>• 推算 = 有效胎动 / 计数小时 × 12</Text>
-      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>• 手动提前结束的周期不参与普通统计</Text>
     </VStack>
 
     <SeeyouSyncSection onRefresh={onRefresh} />

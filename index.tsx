@@ -163,7 +163,16 @@ function MainPage() {
           navigationBarTitleDisplayMode="inline"
           toolbar={{
             cancellationAction: <Button title="关闭" action={dismiss} />,
-            primaryAction: <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
+            topBarTrailing: [
+              <Button title="说明" systemImage="info.circle" action={() => {
+                void Dialog.alert({
+                  message: "• 1 小时为一个计数周期\n• 首次记录自动开始周期\n• 5 分钟内连续点击计为子胎动\n• ≥ 5 分钟视为新的有效胎动\n• 手动提前结束的周期不参与统计",
+                  title: "计数规则",
+                  buttonLabel: "知道了",
+                })
+              }} />,
+              <Button title="刷新" systemImage="arrow.clockwise" action={handleManualRefresh} />,
+            ],
           }}
           confirmationDialog={{
             title: "停止本次记录？",
