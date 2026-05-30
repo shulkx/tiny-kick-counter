@@ -31,20 +31,23 @@ import { formatDayKey } from "../utils/date"
 
 // --- buildTodayCard tests ---
 
-// Use a real timestamp for 2026-05-26 (matches test fixture day_key)
-// 2026-05-26T08:00:00Z = 1779854400000
-const TEST_TODAY_TS = 1779854400000
+// Construct local-timezone timestamps to avoid UTC offset issues
+const TEST_TODAY_TS = new Date(2026, 4, 26, 8, 0, 0).getTime()
 const TEST_TODAY_KEY = formatDayKey(TEST_TODAY_TS)
 assert(TEST_TODAY_KEY === "2026-05-26", `TEST_TODAY_KEY should be 2026-05-26 but got ${TEST_TODAY_KEY}`)
 
-// Rebuild test state with realistic timestamps for 2026-05-26
+const TEST_TODAY_TS_MINUS_1H = new Date(2026, 4, 26, 7, 0, 0).getTime()
+const TEST_TODAY_TS_MINUS_2H = new Date(2026, 4, 26, 6, 0, 0).getTime()
+const TEST_YESTERDAY_TS = new Date(2026, 4, 25, 8, 0, 0).getTime()
+
+// Rebuild test state with local-timezone timestamps for 2026-05-26
 const perfState: FetalMovementState = {
   schema_version: 1,
-  active_cycle: cycle("active", "2026-05-26", 1779854400000, 1, 2),
+  active_cycle: cycle("active", "2026-05-26", TEST_TODAY_TS, 1, 2),
   completed_cycles: [
-    cycle("valid", "2026-05-26", 1779850800000, 2, 3, "expired", true),
-    cycle("manual", "2026-05-26", 1779847200000, 9, 9, "manual", false),
-    cycle("old", "2026-05-25", 1779764400000, 1, 1, "expired", true),
+    cycle("valid", "2026-05-26", TEST_TODAY_TS_MINUS_1H, 2, 3, "expired", true),
+    cycle("manual", "2026-05-26", TEST_TODAY_TS_MINUS_2H, 9, 9, "manual", false),
+    cycle("old", "2026-05-25", TEST_YESTERDAY_TS, 1, 1, "expired", true),
   ],
 }
 
@@ -67,7 +70,7 @@ const noDayKeyState: FetalMovementState = {
   schema_version: 1,
   active_cycle: null,
   completed_cycles: [
-    { ...cycle("nodaykey", "", 1779854400000, 3, 5, "expired", true), day_key: "" },
+    { ...cycle("nodaykey", "", TEST_TODAY_TS, 3, 5, "expired", true), day_key: "" },
   ],
 }
 const fallbackCard = buildTodayCard(noDayKeyState, TEST_TODAY_TS)
@@ -75,7 +78,7 @@ assert(fallbackCard !== null, "buildTodayCard handles missing day_key via fallba
 assert(fallbackCard!.effective_total === 3, "fallback card has correct effective_total")
 
 // Test 4: seeyou cycles included
-const seeyouCycle = cycle("seeyou:123", "2026-05-26", 1779852000000, 4, 8, "expired", true)
+const seeyouCycle = cycle("seeyou:123", "2026-05-26", TEST_TODAY_TS_MINUS_1H + 1800000, 4, 8, "expired", true)
 seeyouCycle.source = "seeyou"
 const withSeeyou = buildTodayCard(perfState, TEST_TODAY_TS, [seeyouCycle])
 assert(withSeeyou !== null, "buildTodayCard includes seeyou cycles")
@@ -299,12 +302,15 @@ After the existing state declarations:
 
 ```ts
 const [seeyouCache, setSeeyouCache] = useState(() => readSeeyouCache())
+const dataVersionRef = { current: 0 }
 const [dataVersion, setDataVersion] = useState(0)
 const [historyCards, setHistoryCards] = useState<DayCard[]>([])
 const [historyVersion, setHistoryVersion] = useState(-1)
 const [settingsCards, setSettingsCards] = useState<DayCard[]>([])
 const [settingsVersion, setSettingsVersion] = useState(-1)
 ```
+
+`dataVersionRef` tracks the latest version synchronously (incremented in the same call that bumps state). Derived versions are set to `dataVersionRef.current` after recomputation, ensuring they align even if `dataVersion` was bumped multiple times between renders.
 
 - [ ] **Step 4: Implement three-tier refresh**
 
@@ -313,6 +319,11 @@ const [settingsVersion, setSettingsVersion] = useState(-1)
 Replace the existing `refresh` function with:
 
 ```ts
+function bumpVersion() {
+  dataVersionRef.current += 1
+  setDataVersion(dataVersionRef.current)
+}
+
 function refreshView(message?: string): { archived: boolean } {
   const now = Date.now()
   setNowTs(now)
@@ -327,13 +338,13 @@ function refreshView(message?: string): { archived: boolean } {
 
 function invalidateData(message?: string) {
   refreshView(message)
-  setDataVersion(v => v + 1)
+  bumpVersion()
 }
 
 function invalidateSeeyouData(message?: string) {
   refreshView(message)
   setSeeyouCache(readSeeyouCache())
-  setDataVersion(v => v + 1)
+  bumpVersion()
 }
 ```
 
@@ -368,13 +379,13 @@ async function handleDeleteCycle(cycleId: string) {
     const freshState = loadStateWithLazyArchive()
     const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
     setHistoryCards(buildDayCards(freshState, Infinity, cycles))
-    setHistoryVersion(v => v + 1)
+    setHistoryVersion(dataVersionRef.current)
     Widget.reloadAll()
   }
 }
 ```
 
-Note: `setHistoryVersion(v => v + 1)` uses the updater form to stay in sync with the just-bumped `dataVersion`. Since both use `v => v + 1` updaters, they will be consistent within the same render batch.
+Note: `setHistoryVersion(dataVersionRef.current)` aligns the derived version with the actual current data version, regardless of how many times it was bumped since last recomputation.
 
 - [ ] **Step 7: Update `useEffect` for scenePhase**
 
@@ -408,11 +419,7 @@ const todayCards = todayCard ? [todayCard] : []
 ```ts
 onAppear={() => {
   const { archived } = refreshView()
-  if (archived) {
-    // Lazy archive happened — derived cards are now stale
-    // dataVersion was NOT bumped by refreshView; bump here
-    setDataVersion(v => v + 1)
-  }
+  if (archived) bumpVersion()
   void autoSyncIfDue().then(result => {
     if (result?.kind === "ok") { invalidateSeeyouData(); Widget.reloadAll() }
   })
@@ -424,13 +431,12 @@ onAppear={() => {
 ```ts
 onAppear={() => {
   const { archived } = refreshView()
-  const stale = archived || historyVersion !== dataVersion
-  if (stale) {
-    if (archived) setDataVersion(v => v + 1)
+  if (archived) bumpVersion()
+  if (historyVersion !== dataVersionRef.current) {
     const freshState = loadStateWithLazyArchive()
     const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
     setHistoryCards(buildDayCards(freshState, Infinity, cycles))
-    setHistoryVersion(v => v + 1)
+    setHistoryVersion(dataVersionRef.current)
   }
 }}
 ```
@@ -444,13 +450,12 @@ Change `<HistoryPage cards={allCards} ...>` to `<HistoryPage cards={historyCards
 ```ts
 onAppear={() => {
   const { archived } = refreshView()
-  const stale = archived || settingsVersion !== dataVersion
-  if (stale) {
-    if (archived) setDataVersion(v => v + 1)
+  if (archived) bumpVersion()
+  if (settingsVersion !== dataVersionRef.current) {
     const freshState = loadStateWithLazyArchive()
     const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
     setSettingsCards(buildDayCards(freshState, RECENT_DAY_LIMIT, cycles))
-    setSettingsVersion(v => v + 1)
+    setSettingsVersion(dataVersionRef.current)
   }
 }}
 ```
@@ -465,7 +470,7 @@ function handleSeeyouDataChanged(message?: string) {
   const freshCache = readSeeyouCache()
   const cycles = freshCache.sync_enabled ? freshCache.cycles : []
   setSettingsCards(buildDayCards(freshState, RECENT_DAY_LIMIT, cycles))
-  setSettingsVersion(v => v + 1)
+  setSettingsVersion(dataVersionRef.current)
 }
 ```
 
