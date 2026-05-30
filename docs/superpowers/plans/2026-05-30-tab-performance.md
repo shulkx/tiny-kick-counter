@@ -10,7 +10,7 @@
 
 **Validation command:** `scripting-ts project "Tiny Kick Counter" --check`
 
-**Note on `autoSyncIfDue`:** Both scenePhase active and Records `onAppear` may call it. This is safe because `shouldAutoSync` (in `seeyou/cache.ts`) gates on a minimum interval — no additional throttle logic is needed.
+**Note on `autoSyncIfDue`:** Both scenePhase active and Records `onAppear` may call it. This is safe because `pendingAutoSync` prevents concurrent execution and `shouldAutoSync` (in `seeyou/cache.ts`) gates on a minimum interval — no additional throttle logic is needed.
 
 ---
 
@@ -23,12 +23,16 @@
 
 - [ ] **Step 1: Write failing tests for `buildTodayCard`**
 
-Append to `tests/stats_test.ts`. Use a real timestamp that produces `"2026-05-26"` via `formatDayKey`:
+First, update the import at the top of `tests/stats_test.ts` (will cause compile error until implementation exists):
 
 ```ts
-import { buildTodayCard, getTodayCard } from "../common/stats"
+import { buildDayCards, buildTodayCard, getTodayCard, selectWidgetRows, summarizeDayCards } from "../common/stats"
 import { formatDayKey } from "../utils/date"
+```
 
+Then append the following test body after the existing `console.log("stats_test passed")` line:
+
+```ts
 // --- buildTodayCard tests ---
 
 // Construct local-timezone timestamps to avoid UTC offset issues
@@ -141,20 +145,12 @@ export function getTodayCard(state: FetalMovementState, nowTs = Date.now(), seey
 }
 ```
 
-- [ ] **Step 5: Update import in test file**
-
-Update the import at the top of `tests/stats_test.ts`:
-
-```ts
-import { buildDayCards, buildTodayCard, getTodayCard, selectWidgetRows, summarizeDayCards } from "../common/stats"
-```
-
-- [ ] **Step 6: Run validation**
+- [ ] **Step 5: Run validation**
 
 Run: `scripting-ts project "Tiny Kick Counter" --check`
 Expected: PASS
 
-- [ ] **Step 7: Add re-exports in `common/model.ts`**
+- [ ] **Step 6: Add re-exports in `common/model.ts`**
 
 Replace the existing stats export line with:
 
@@ -170,12 +166,12 @@ export type { FetalMovementState, Cycle, DayCard } from "./types"
 
 (Replace the existing `export type { FetalMovementState, Cycle } from "./types"` line.)
 
-- [ ] **Step 8: Run validation**
+- [ ] **Step 7: Run validation**
 
 Run: `scripting-ts project "Tiny Kick Counter" --check`
 Expected: PASS
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add common/stats.ts common/model.ts tests/stats_test.ts
@@ -302,7 +298,7 @@ After the existing state declarations:
 
 ```ts
 const [seeyouCache, setSeeyouCache] = useState(() => readSeeyouCache())
-const dataVersionRef = { current: 0 }
+const [dataVersionRef] = useState(() => ({ current: 0 }))
 const [dataVersion, setDataVersion] = useState(0)
 const [historyCards, setHistoryCards] = useState<DayCard[]>([])
 const [historyVersion, setHistoryVersion] = useState(-1)
@@ -310,7 +306,7 @@ const [settingsCards, setSettingsCards] = useState<DayCard[]>([])
 const [settingsVersion, setSettingsVersion] = useState(-1)
 ```
 
-`dataVersionRef` tracks the latest version synchronously (incremented in the same call that bumps state). Derived versions are set to `dataVersionRef.current` after recomputation, ensuring they align even if `dataVersion` was bumped multiple times between renders.
+`dataVersionRef` is a stable object (created once via `useState` initializer) that tracks the latest version synchronously. Derived versions are set to `dataVersionRef.current` after recomputation, ensuring they align even if `dataVersion` was bumped multiple times between renders.
 
 - [ ] **Step 4: Implement three-tier refresh**
 
