@@ -93,7 +93,17 @@ function MainPage() {
 
   function handleManualRefresh() {
     invalidateSeeyouData("已刷新页面并请求更新小组件。")
+    rebuildDerivedCards()
     Widget.reloadAll()
+  }
+
+  function rebuildDerivedCards() {
+    const freshState = loadStateWithLazyArchive()
+    const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
+    setHistoryCards(buildDayCards(freshState, Infinity, cycles))
+    setHistoryVersion(dataVersionRef.current)
+    setSettingsCards(buildDayCards(freshState, RECENT_DAY_LIMIT, cycles))
+    setSettingsVersion(dataVersionRef.current)
   }
 
   function handleSeeyouDataChanged(message?: string) {
@@ -152,7 +162,10 @@ function MainPage() {
       }
       const result = await restoreBackupFromFile(filePath, Date.now(), "app")
       invalidateData(result.message)
-      if (result.status === "restore") Widget.reloadAll()
+      if (result.status === "restore") {
+        rebuildDerivedCards()
+        Widget.reloadAll()
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       invalidateData(`恢复失败：${message}`)
@@ -184,6 +197,7 @@ function MainPage() {
     const result = await resetState()
     setConfirmAction(null)
     invalidateData(result.message)
+    rebuildDerivedCards()
     Widget.reloadAll()
   }
 
