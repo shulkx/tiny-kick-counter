@@ -227,12 +227,18 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
     })
   }
 
-  const statusIcon = cache.last_sync_status === "ok" ? "✅" : cache.last_sync_status ? "❌" : ""
-  const statusLabel = cache.last_sync_status === "token_invalid" ? "Token 失效"
-    : cache.last_sync_status === "network_error" ? "网络错误"
-    : cache.last_sync_status === "parse_error" ? "数据异常"
-    : ""
-  const syncTimeStr = cache.last_sync_ts ? formatSyncTime(cache.last_sync_ts) : ""
+  const statusText = cache.last_sync_status === "ok" && cache.last_sync_ts
+    ? `${formatSyncTime(cache.last_sync_ts)} · 已同步 ${cache.cycles.length} 条`
+    : cache.last_sync_status === "token_invalid" && cache.last_sync_ts
+    ? `Token 失效 · ${formatSyncTime(cache.last_sync_ts)}`
+    : cache.last_sync_status === "network_error" && cache.last_sync_ts
+    ? `网络错误 · ${formatSyncTime(cache.last_sync_ts)}`
+    : cache.last_sync_status === "parse_error" && cache.last_sync_ts
+    ? `数据异常 · ${formatSyncTime(cache.last_sync_ts)}`
+    : "尚未同步"
+  const statusColor = cache.last_sync_status === "ok" ? themeColors.systemGreen
+    : cache.last_sync_status ? themeColors.systemRed
+    : themeColors.tertiaryLabel
 
   return <VStack
     alignment="leading"
@@ -252,34 +258,48 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
 
     <Toggle value={cache.sync_enabled} onChanged={handleToggle} title="启用美柚同步" />
 
-    <VStack alignment="leading" spacing={8}>
-      <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>Token</Text>
-      {showToken
-        ? <TextField title="Token" value={tokenText} onChanged={setTokenText} prompt="粘贴美柚 authorization 头" />
-        : <SecureField title="Token" value={tokenText} onChanged={setTokenText} prompt="粘贴美柚 authorization 头" />
-      }
-      <HStack spacing={10}>
-        <Button action={() => setShowToken(!showToken)} buttonStyle="plain">
-          <Text font="caption" foregroundStyle={themeColors.systemBlue}>{showToken ? "隐藏" : "显示"}</Text>
+    {cache.sync_enabled ? <VStack alignment="leading" spacing={12}>
+      <VStack alignment="leading" spacing={8}>
+        <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>Token</Text>
+        <HStack spacing={0}>
+          {showToken
+            ? <TextField title="Token" value={tokenText} onChanged={setTokenText} prompt="粘贴美柚 authorization 头" />
+            : <SecureField title="Token" value={tokenText} onChanged={setTokenText} prompt="粘贴美柚 authorization 头" />
+          }
+          <Button action={() => setShowToken(!showToken)} buttonStyle="plain">
+            <Image
+              systemName={showToken ? "eye.slash" : "eye"}
+              font={14}
+              foregroundStyle={themeColors.secondaryLabel}
+              frame={{ width: 32, height: 32 }}
+            />
+          </Button>
+        </HStack>
+        <Button action={handleSaveToken} buttonStyle="borderedProminent">
+          <Text font="subheadline" fontWeight="medium">保存 Token</Text>
         </Button>
-        <Button action={handleSaveToken} buttonStyle="plain">
-          <Text font="caption" foregroundStyle={themeColors.systemBlue}>保存</Text>
-        </Button>
-      </HStack>
-    </VStack>
+      </VStack>
 
-    {cache.sync_enabled ? <VStack alignment="leading" spacing={8}>
-      {cache.last_sync_ts ? <Text font="caption" foregroundStyle={themeColors.secondaryLabel}>
-        上次同步：{syncTimeStr} {statusIcon}{statusLabel ? ` ${statusLabel}` : ""}
-      </Text> : null}
-      <Button action={() => { void handleSync() }} buttonStyle="plain">
-        <Text font="subheadline" fontWeight="medium" foregroundStyle={themeColors.systemBlue}>
-          {isSyncing ? "同步中…" : "立即同步"}
-        </Text>
-      </Button>
-      <Button action={() => { void handleClear() }} buttonStyle="plain">
-        <Text font="subheadline" foregroundStyle={themeColors.systemRed}>清空美柚数据</Text>
-      </Button>
+      <HStack spacing={6} padding={{ vertical: 6, horizontal: 10 }} background={roundedBackground(cache.last_sync_status === "ok" ? "#f0fdf4" : cache.last_sync_status ? "#fef2f2" : themeColors.pillBackground, 8)}>
+        <Image systemName="circle.fill" font={6} foregroundStyle={statusColor} />
+        <Text font="caption" foregroundStyle={statusColor}>{statusText}</Text>
+      </HStack>
+
+      <SettingsActionRow
+        title="立即同步"
+        subtitle={isSyncing ? "同步中…" : "从美柚拉取全部胎动历史"}
+        systemImage="arrow.triangle.2.circlepath"
+        tint="systemBlue"
+        action={() => { void handleSync() }}
+      />
+      <SettingsActionRow
+        title="清空美柚数据"
+        subtitle="清空缓存，下次同步重新下载"
+        systemImage="trash.fill"
+        tint={themeColors.systemRed}
+        destructive
+        action={() => { void handleClear() }}
+      />
     </VStack> : null}
   </VStack>
 }
