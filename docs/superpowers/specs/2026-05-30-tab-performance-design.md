@@ -19,7 +19,13 @@ Currently `readSeeyouCache()` is called in the render body. Move it to state:
 const [seeyouCache, setSeeyouCache] = useState(() => readSeeyouCache())
 ```
 
-Update it inside `refreshView()` (see section 4 for the split). This eliminates per-render disk I/O.
+The seeyou cache is re-read from disk only in these scenarios:
+- **Mount** (initial `useState`)
+- **Scene phase → active** (app returning from background)
+- **Manual refresh button**
+- **After sync/toggle/clear seeyou operations** (via `invalidateData`)
+
+Tab `onAppear` does NOT re-read the seeyou cache — it only refreshes local state and `nowTs`. The cached `seeyouCache` state is already up-to-date for tab switches because no operation between tabs can change the on-disk seeyou file.
 
 ### 2. New `buildTodayCard` function in `common/stats.ts`
 
@@ -57,8 +63,9 @@ This gives `widget.tsx` the same performance benefit with no interface change.
 
 Two concerns are currently conflated in `refresh()`:
 
-- **`refreshView()`** — re-reads state + seeyou cache from disk, updates `nowTs`. Called by tab `onAppear` and scenePhase active. Does NOT bump version.
-- **`invalidateData()`** — calls `refreshView()` then increments `dataVersion`. Called only after real data mutations: `record`, `closeCycle`, `deleteCycle`, `resetState`, `restoreBackup`, sync success, toggle/clear seeyou.
+- **`refreshView(message?)`** — re-reads local state from disk + updates `nowTs`. Lightweight: does NOT read seeyou cache, does NOT bump version. Called by tab `onAppear`.
+- **`reloadAll(message?)`** — re-reads local state AND seeyou cache, updates `nowTs`. Called on mount, scene active, and manual refresh button.
+- **`invalidateData(message?)`** — calls `reloadAll()` then increments `dataVersion`. Called only after real data mutations: `record`, `closeCycle`, `deleteCycle`, `resetState`, `restoreBackup`, sync success, toggle/clear seeyou.
 
 ```ts
 const [dataVersion, setDataVersion] = useState(0)
@@ -66,17 +73,21 @@ const [dataVersion, setDataVersion] = useState(0)
 function refreshView(message?: string) {
   setNowTs(Date.now())
   setState(loadStateWithLazyArchive())
-  setSeeyouCache(readSeeyouCache())
   if (message) { setToastMessage(message); setShowToast(true) }
 }
 
-function invalidateData(message?: string) {
+function reloadAll(message?: string) {
   refreshView(message)
+  setSeeyouCache(readSeeyouCache())
+}
+
+function invalidateData(message?: string) {
+  reloadAll(message)
   setDataVersion(v => v + 1)
 }
 ```
 
-Tab `onAppear` calls `refreshView()`. Action handlers (`handleRecord`, `handleReset`, etc.) call `invalidateData()`.
+Tab `onAppear` calls `refreshView()` (no disk read for seeyou). Scene active / manual refresh calls `reloadAll()`. Action handlers (`handleRecord`, `handleReset`, etc.) call `invalidateData()`.
 
 ### 5. Records tab uses `buildTodayCard` only
 
@@ -106,8 +117,6 @@ History tab `onAppear` recomputes only when stale:
 onAppear={() => {
   refreshView()
   if (historyVersion !== dataVersion) {
-    // Use freshly-read values from loadStateWithLazyArchive / readSeeyouCache
-    // to avoid stale closure. Alternatively, read a fresh snapshot here:
     const freshState = loadStateWithLazyArchive()
     const freshCache = readSeeyouCache()
     const seeyouCycles = freshCache.sync_enabled ? freshCache.cycles : []
@@ -116,6 +125,8 @@ onAppear={() => {
   }
 }}
 ```
+
+**In-page mutation handling**: if the user deletes a cycle while on the history tab, `invalidateData()` bumps `dataVersion` but `onAppear` won't re-fire. To handle this, after `handleDeleteCycle` completes, immediately recompute `historyCards` inline (read fresh snapshot, rebuild, set state). This ensures deleted items disappear without waiting for a tab switch.
 
 Note: to avoid stale-closure issues, history recomputation reads a fresh snapshot directly rather than relying on `state`/`seeyouCache` state variables (which won't reflect the just-called `refreshView()` until next render).
 
@@ -149,16 +160,17 @@ This caps initial render to ~20 day sections. User taps "加载更多" to see ol
 
 Settings currently receives `cards` (30-day) as a prop for summary stats. Change to lazy computation on appear, preserving 30-day semantics:
 
-Settings `onAppear` computes `buildDayCards(state, RECENT_DAY_LIMIT, seeyouCycles)` and stores in local state. This maintains identical behavior (30-day window) while removing it from the main render path.
+Settings `onAppear` computes `buildDayCards(state, RECENT_DAY_LIMIT, seeyouCycles)` and stores in local state. Additionally, since seeyou sync/toggle/clear operations happen within the settings page itself, `SettingsPage` receives a `reloadSummary()` callback from MainPage. After any sync/toggle/clear operation completes, the handler calls `invalidateData()` then `reloadSummary()`, which re-reads a fresh snapshot and recomputes the 30-day cards so the summary updates immediately without leaving the page.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
 | `common/stats.ts` | Add `buildTodayCard`; rewrite `getTodayCard` to delegate |
-| `index.tsx` | Lift seeyouCache to state; split `refreshView`/`invalidateData`; replace eager cards with `buildTodayCard`; add `dataVersion` + lazy `historyCards`; pass computation to settings on appear |
+| `common/model.ts` | Re-export `buildTodayCard` (entry files import from `common/model`) |
+| `index.tsx` | Lift seeyouCache to state; split `refreshView`/`reloadAll`/`invalidateData`; replace eager cards with `buildTodayCard`; add `dataVersion` + lazy `historyCards`; inline recompute on delete; pass `reloadSummary` to settings |
 | `pages/history.tsx` | Add pagination (PAGE_SIZE = 20, "加载更多" button) |
-| `pages/settings.tsx` | Compute 30-day cards internally on appear instead of receiving as prop |
+| `pages/settings.tsx` | Compute 30-day cards internally on appear; accept `reloadSummary` callback for post-sync/toggle/clear updates |
 
 ## What Stays Unchanged
 
@@ -173,11 +185,11 @@ Three categories of tests to add in `tests/stats_test.ts`:
 
 1. **Equivalence**: `buildTodayCard(state, nowTs, seeyouCycles)` returns the same result as `buildDayCards(state, Infinity, seeyouCycles).find(c => c.day_key === formatDayKey(nowTs))` for various inputs.
 2. **Key fallback**: cycles missing `day_key` (relying on `formatDayKey(started_ts)` fallback) are correctly included/excluded by `buildTodayCard`.
-3. **`getTodayCard` delegation**: after rewrite, `getTodayCard` returns identical results to the old implementation across edge cases (no cycles, mixed sources, active cycle).
+3. **`getTodayCard` delegation**: after rewrite, `getTodayCard` returns identical results to `buildDayCards(state, Infinity, seeyouCycles).find(c => c.day_key === formatDayKey(nowTs))` across edge cases (no cycles, mixed sources, active cycle, future/abnormal day_key).
 
 ## Expected Impact
 
-- **Records tab switch**: eliminates full-scan aggregation + disk read → near-instant
+- **Records tab switch**: only reads lightweight local state (no seeyou disk I/O), computes today card only → near-instant
 - **Settings tab switch**: no computation until opened, then only 30-day scan
 - **History tab switch**: still does full scan, but only when data actually changed; pagination caps render cost to ~20 sections
 - **Widget**: `getTodayCard` now O(n) filter instead of full grouping → faster widget refresh
