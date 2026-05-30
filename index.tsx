@@ -16,18 +16,20 @@ import {
 import {
   autoSyncIfDue,
   buildDayCards,
+  buildTodayCard,
   closeCycle,
   createBackupFile,
   deleteCycle,
   loadStateWithLazyArchive,
+  loadStateWithLazyArchiveDetailed,
   readSeeyouCache,
+  RECENT_DAY_LIMIT,
   recordMovement,
   resetState,
   restoreBackupFromFile,
   themeColors,
 } from "./common/model"
-import type { FetalMovementState } from "./common/model"
-import { formatDayKey } from "./utils"
+import type { FetalMovementState, DayCard } from "./common/model"
 import { HistoryPage } from "./pages/history"
 import { RecordsPage } from "./pages/records"
 import { SettingsPage } from "./pages/settings"
@@ -40,22 +42,48 @@ function MainPage() {
   const [showToast, setShowToast] = useState(false)
   const [confirmAction, setConfirmAction] = useState<"reset" | "restore" | "close_cycle" | null>(null)
   const [isRecording, setIsRecording] = useState(false)
+  const [seeyouCache, setSeeyouCache] = useState(() => readSeeyouCache())
+  const [dataVersionRef] = useState(() => ({ current: 0 }))
+  const [dataVersion, setDataVersion] = useState(0)
+  const [historyCards, setHistoryCards] = useState<DayCard[]>([])
+  const [historyVersion, setHistoryVersion] = useState(-1)
+  const [settingsCards, setSettingsCards] = useState<DayCard[]>([])
+  const [settingsVersion, setSettingsVersion] = useState(-1)
 
-  function refresh(message?: string) {
-    setNowTs(Date.now())
-    setState(loadStateWithLazyArchive())
+  function bumpVersion() {
+    dataVersionRef.current += 1
+    setDataVersion(dataVersionRef.current)
+  }
+
+  function refreshView(message?: string): { archived: boolean } {
+    const now = Date.now()
+    setNowTs(now)
+    const result = loadStateWithLazyArchiveDetailed(now)
+    setState(result.state)
     if (message) {
       setToastMessage(message)
       setShowToast(true)
     }
+    return { archived: result.archived }
+  }
+
+  function invalidateData(message?: string) {
+    refreshView(message)
+    bumpVersion()
+  }
+
+  function invalidateSeeyouData(message?: string) {
+    refreshView(message)
+    setSeeyouCache(readSeeyouCache())
+    bumpVersion()
   }
 
   useEffect(() => {
     const handleScenePhase = (phase: "active" | "inactive" | "background") => {
       if (phase === "active") {
-        refresh()
+        invalidateSeeyouData()
         void autoSyncIfDue().then(result => {
-          if (result?.kind === "ok") { refresh(); Widget.reloadAll() }
+          if (result?.kind === "ok") { invalidateSeeyouData(); Widget.reloadAll() }
         })
       }
     }
@@ -64,8 +92,17 @@ function MainPage() {
   }, [])
 
   function handleManualRefresh() {
-    refresh("已刷新页面并请求更新小组件。")
+    invalidateSeeyouData("已刷新页面并请求更新小组件。")
     Widget.reloadAll()
+  }
+
+  function handleSeeyouDataChanged(message?: string) {
+    invalidateSeeyouData(message)
+    const freshState = loadStateWithLazyArchive()
+    const freshCache = readSeeyouCache()
+    const cycles = freshCache.sync_enabled ? freshCache.cycles : []
+    setSettingsCards(buildDayCards(freshState, RECENT_DAY_LIMIT, cycles))
+    setSettingsVersion(dataVersionRef.current)
   }
 
   async function handleRecord() {
@@ -73,7 +110,7 @@ function MainPage() {
     setIsRecording(true)
     try {
       const result = await recordMovement(Date.now(), "app")
-      refresh(result.message)
+      invalidateData(result.message)
       Widget.reloadAll()
     } finally {
       setIsRecording(false)
@@ -86,7 +123,7 @@ function MainPage() {
     setIsRecording(true)
     try {
       const result = await closeCycle(Date.now(), "app")
-      refresh(result.message)
+      invalidateData(result.message)
       Widget.reloadAll()
     } finally {
       setIsRecording(false)
@@ -97,10 +134,10 @@ function MainPage() {
     try {
       const backup = await createBackupFile("manual")
       console.log(backup.json)
-      refresh(`已导出备份：${backup.file_name}`)
+      invalidateData(`已导出备份：${backup.file_name}`)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      refresh(`导出失败：${message}`)
+      invalidateData(`导出失败：${message}`)
     }
   }
 
@@ -110,15 +147,15 @@ function MainPage() {
       const files = await DocumentPicker.pickFiles()
       const filePath = files[0]
       if (!filePath) {
-        refresh("已取消恢复。")
+        invalidateData("已取消恢复。")
         return
       }
       const result = await restoreBackupFromFile(filePath, Date.now(), "app")
-      refresh(result.message)
+      invalidateData(result.message)
       if (result.status === "restore") Widget.reloadAll()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      refresh(`恢复失败：${message}`)
+      invalidateData(`恢复失败：${message}`)
     } finally {
       DocumentPicker.stopAcessingSecurityScopedResources()
     }
@@ -134,7 +171,11 @@ function MainPage() {
     })
     if (ok) {
       deleteCycle(cycleId)
-      refresh("已删除该周期。")
+      invalidateData("已删除该周期。")
+      const freshState = loadStateWithLazyArchive()
+      const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
+      setHistoryCards(buildDayCards(freshState, Infinity, cycles))
+      setHistoryVersion(dataVersionRef.current)
       Widget.reloadAll()
     }
   }
@@ -142,16 +183,13 @@ function MainPage() {
   async function handleReset() {
     const result = await resetState()
     setConfirmAction(null)
-    refresh(result.message)
+    invalidateData(result.message)
     Widget.reloadAll()
   }
 
-  const seeyouCache = readSeeyouCache()
   const seeyouCycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
-  const cards = buildDayCards(state, undefined, seeyouCycles)
-  const allCards = buildDayCards(state, Infinity, seeyouCycles)
-  const todayKey = formatDayKey(nowTs)
-  const todayCards = cards.filter(card => card.day_key === todayKey)
+  const todayCard = buildTodayCard(state, nowTs, seeyouCycles)
+  const todayCards = todayCard ? [todayCard] : []
 
   return <VStack frame={{ maxWidth: "infinity", maxHeight: "infinity" }} background={themeColors.pageBackground}>
     <TabView>
@@ -159,9 +197,10 @@ function MainPage() {
       <NavigationStack>
         <ScrollView
           onAppear={() => {
-            refresh()
+            const { archived } = refreshView()
+            if (archived) bumpVersion()
             void autoSyncIfDue().then(result => {
-              if (result?.kind === "ok") { refresh(); Widget.reloadAll() }
+              if (result?.kind === "ok") { invalidateSeeyouData(); Widget.reloadAll() }
             })
           }}
           navigationTitle="胎动记录"
@@ -213,7 +252,16 @@ function MainPage() {
     <Tab title="历史" systemImage="clock.arrow.circlepath">
       <NavigationStack>
         <VStack
-          onAppear={() => refresh()}
+          onAppear={() => {
+            const { archived } = refreshView()
+            if (archived) bumpVersion()
+            if (historyVersion !== dataVersionRef.current) {
+              const freshState = loadStateWithLazyArchive()
+              const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
+              setHistoryCards(buildDayCards(freshState, Infinity, cycles))
+              setHistoryVersion(dataVersionRef.current)
+            }
+          }}
           navigationTitle="历史记录"
           navigationBarTitleDisplayMode="inline"
           toolbar={{
@@ -238,7 +286,7 @@ function MainPage() {
           }}
         >
           <HistoryPage
-            cards={allCards}
+            cards={historyCards}
             onDeleteCycle={(cycleId) => { void handleDeleteCycle(cycleId) }}
           />
         </VStack>
@@ -248,7 +296,16 @@ function MainPage() {
     <Tab title="设置" systemImage="gearshape">
       <NavigationStack>
         <ScrollView
-          onAppear={() => refresh()}
+          onAppear={() => {
+            const { archived } = refreshView()
+            if (archived) bumpVersion()
+            if (settingsVersion !== dataVersionRef.current) {
+              const freshState = loadStateWithLazyArchive()
+              const cycles = seeyouCache.sync_enabled ? seeyouCache.cycles : []
+              setSettingsCards(buildDayCards(freshState, RECENT_DAY_LIMIT, cycles))
+              setSettingsVersion(dataVersionRef.current)
+            }
+          }}
           navigationTitle="设置"
           navigationBarTitleDisplayMode="inline"
           toolbar={{
@@ -277,11 +334,11 @@ function MainPage() {
         >
           <VStack alignment="leading" spacing={14} padding={12}>
             <SettingsPage
-              cards={cards}
+              cards={settingsCards}
               onExport={() => { void handleExport() }}
               onRestore={() => setConfirmAction("restore")}
               onReset={() => setConfirmAction("reset")}
-              onRefresh={() => refresh()}
+              onSeeyouDataChanged={handleSeeyouDataChanged}
             />
           </VStack>
         </ScrollView>
