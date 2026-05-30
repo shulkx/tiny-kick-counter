@@ -264,12 +264,12 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
             />
           </Button>
         </HStack>
-        <Button action={handleSaveToken} buttonStyle="borderedProminent">
+        <Button action={handleSaveToken} buttonStyle="bordered" tint="systemBlue">
           <Text font="subheadline" fontWeight="medium">保存 Token</Text>
         </Button>
       </VStack>
 
-      <HStack spacing={6} padding={{ vertical: 6, horizontal: 10 }} background={roundedBackground(cache.last_sync_status === "ok" ? "#f0fdf4" : cache.last_sync_status ? "#fef2f2" : themeColors.pillBackground, 8)}>
+      <HStack spacing={6} padding={{ vertical: 6, horizontal: 10 }} background={roundedBackground(cache.last_sync_status === "ok" ? themeColors.syncStatusOkBackground : cache.last_sync_status ? themeColors.syncStatusErrorBackground : themeColors.pillBackground, 8)}>
         <Image systemName="circle.fill" font={6} foregroundStyle={statusColor} />
         <Text font="caption" foregroundStyle={statusColor}>{statusText}</Text>
       </HStack>

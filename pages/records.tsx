@@ -51,7 +51,7 @@ function RecordsHeroCard({
       </Text>
     </VStack>
     <HStack spacing={10}>
-      <Button title="记录胎动" systemImage="plus.circle.fill" buttonStyle="borderedProminent" action={onRecord} />
+      <Button title="记录胎动" systemImage="plus.circle.fill" buttonStyle="bordered" tint="systemBlue" action={onRecord} />
       {activeCycle ? <Button title="结束当前周期" systemImage="xmark.circle" role="destructive" buttonStyle="bordered" action={onCloseCycle} /> : null}
     </HStack>
   </VStack>

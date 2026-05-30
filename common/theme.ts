@@ -106,6 +106,16 @@ export const themeColors = {
     dark: "#8EC5FF",
   } as DynamicShapeStyle,
 
+  syncStatusOkBackground: {
+    light: "rgba(34,197,94,0.08)",
+    dark: "rgba(34,197,94,0.16)",
+  } as DynamicShapeStyle,
+
+  syncStatusErrorBackground: {
+    light: "rgba(239,68,68,0.08)",
+    dark: "rgba(239,68,68,0.16)",
+  } as DynamicShapeStyle,
+
   label: "label" as Color,
   secondaryLabel: "secondaryLabel" as Color,
   tertiaryLabel: "tertiaryLabel" as Color,
