@@ -38,10 +38,14 @@ export async function syncSeeyou(): Promise<SeeyouSyncResult> {
   return { kind: "ok", importedCount: reconciledCycles.length, totalCount: reconciledCycles.length }
 }
 
+let pendingAutoSync: Promise<SeeyouSyncResult | null> | null = null
+
 export async function autoSyncIfDue(): Promise<SeeyouSyncResult | null> {
+  if (pendingAutoSync) return pendingAutoSync
   const cache = readSeeyouCache()
   if (!cache.sync_enabled) return null
   const now = Date.now()
   if (!shouldAutoSync(now, cache.last_sync_ts, SEEYOU_AUTO_SYNC_MIN_INTERVAL_MS)) return null
-  return syncSeeyou()
+  pendingAutoSync = syncSeeyou().finally(() => { pendingAutoSync = null })
+  return pendingAutoSync
 }
