@@ -81,9 +81,25 @@ assert(todayCard!.counted_hours === todayFromFull!.counted_hours, "counted_hours
 assert(todayCard!.estimated_count === todayFromFull!.estimated_count, "estimated_count matches")
 assert(todayCard!.cycles.length === todayFromFull!.cycles.length, "cycles count matches")
 
-// Test 2: returns null when no cycles match
-const noMatchCard = buildTodayCard(perfState, 99999999999999)
+// Test 2: returns null when no cycles match (no active cycle, no completed for that day)
+const emptyState: FetalMovementState = {
+  schema_version: 1,
+  active_cycle: null,
+  completed_cycles: [cycle("old", "2026-05-25", TEST_YESTERDAY_TS, 1, 1, "expired", true)],
+}
+const noMatchCard = buildTodayCard(emptyState, 99999999999999)
 assert(noMatchCard === null, "buildTodayCard returns null for day with no cycles")
+
+// Test 2b: active cycle always shows in today even if day_key doesn't match
+const crossMidnightState: FetalMovementState = {
+  schema_version: 1,
+  active_cycle: cycle("active-late", "2026-05-25", new Date(2026, 4, 25, 23, 30, 0).getTime(), 3, 5),
+  completed_cycles: [],
+}
+const afterMidnightTs = new Date(2026, 4, 26, 0, 15, 0).getTime()
+const crossMidnightCard = buildTodayCard(crossMidnightState, afterMidnightTs)
+assert(crossMidnightCard !== null, "active cycle shows in today even after midnight")
+assert(crossMidnightCard!.effective_total === 3, "cross-midnight card has correct effective_total")
 
 // Test 3: key fallback — cycle without day_key uses formatDayKey(started_ts)
 const noDayKeyState: FetalMovementState = {

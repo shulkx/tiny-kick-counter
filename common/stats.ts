@@ -58,6 +58,7 @@ export function buildTodayCard(
   const todayKey = formatDayKey(nowTs)
   const allCycles = [...getVisibleCycles(state), ...seeyouCycles]
   const todayCycles = allCycles.filter(cycle => {
+    if (cycle === state.active_cycle) return true
     const key = cycle.day_key || formatDayKey(cycle.started_ts)
     return key === todayKey
   })
