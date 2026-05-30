@@ -1,7 +1,7 @@
 import { Cycle, SEEYOU_CYCLE_ID_PREFIX, SEEYOU_SOURCE } from "../common/types"
-import { SeeyouApiResponse } from "../common/seeyou_types"
-import { reconcileByDay } from "../common/seeyou_reconcile"
-import { mapSeeyouRecordToCycle } from "../common/seeyou_map"
+import { SeeyouApiResponse } from "../seeyou/types"
+import { reconcileByDay } from "../seeyou/reconcile"
+import { mapSeeyouRecordToCycle } from "../seeyou/map"
 import { formatDayKey } from "../utils/date"
 
 function assert(condition: boolean, message: string) {

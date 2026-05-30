@@ -1,5 +1,5 @@
-import { SeeyouRecord } from "../common/seeyou_types"
-import { mapSeeyouRecordToCycle } from "../common/seeyou_map"
+import { SeeyouRecord } from "../seeyou/types"
+import { mapSeeyouRecordToCycle } from "../seeyou/map"
 import { formatDayKey } from "../utils/date"
 
 function assert(condition: boolean, message: string) {

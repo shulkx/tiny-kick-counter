@@ -1,6 +1,6 @@
-import { Cycle, SEEYOU_SOURCE } from "./types"
-import { SeeyouApiResponse } from "./seeyou_types"
-import { mapSeeyouRecordToCycle } from "./seeyou_map"
+import { Cycle, SEEYOU_SOURCE } from "../common/types"
+import { SeeyouApiResponse } from "./types"
+import { mapSeeyouRecordToCycle } from "./map"
 
 export function reconcileByDay(currentCycles: Cycle[], response: SeeyouApiResponse): Cycle[] {
   const seeyouCycles = currentCycles.filter(c => c.source === SEEYOU_SOURCE)

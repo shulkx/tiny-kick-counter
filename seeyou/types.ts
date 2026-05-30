@@ -1,4 +1,4 @@
-import { Cycle } from "./types"
+import { Cycle } from "../common/types"
 
 export type SeeyouRecord = {
   id: number

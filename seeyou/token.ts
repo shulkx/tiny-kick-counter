@@ -1,4 +1,4 @@
-import { SEEYOU_KEYCHAIN_TOKEN_KEY } from "./seeyou_types"
+import { SEEYOU_KEYCHAIN_TOKEN_KEY } from "./types"
 
 export function getSeeyouToken(): string | null {
   const value = Keychain.get(SEEYOU_KEYCHAIN_TOKEN_KEY)

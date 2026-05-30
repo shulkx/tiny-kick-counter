@@ -1,6 +1,6 @@
-import { Cycle, SEEYOU_CYCLE_ID_PREFIX, SEEYOU_SOURCE } from "./types"
+import { Cycle, SEEYOU_CYCLE_ID_PREFIX, SEEYOU_SOURCE } from "../common/types"
 import { formatDayKey } from "../utils/date"
-import { SeeyouRecord } from "./seeyou_types"
+import { SeeyouRecord } from "./types"
 
 const ONE_HOUR_MS = 60 * 60 * 1000
 

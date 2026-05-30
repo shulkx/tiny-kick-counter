@@ -3,8 +3,8 @@ import {
   SeeyouSyncStatus,
   SEEYOU_CACHE_FILE,
   defaultSeeyouCache,
-} from "./seeyou_types"
-import { Cycle, SEEYOU_SOURCE } from "./types"
+} from "./types"
+import { Cycle, SEEYOU_SOURCE } from "../common/types"
 
 function getCacheDirectory(): string {
   return joinPath(FileManager.appGroupDocumentsDirectory, "TinyKickCounter")

@@ -1,8 +1,8 @@
-import { SEEYOU_AUTO_SYNC_MIN_INTERVAL_MS, SeeyouSyncResult } from "./seeyou_types"
-import { getSeeyouToken } from "./seeyou_token"
-import { fetchSeeyouFetal } from "./seeyou_api"
-import { reconcileByDay } from "./seeyou_reconcile"
-import { readSeeyouCache, saveSeeyouCache, shouldAutoSync } from "./seeyou_cache"
+import { SEEYOU_AUTO_SYNC_MIN_INTERVAL_MS, SeeyouSyncResult } from "./types"
+import { getSeeyouToken } from "./token"
+import { fetchSeeyouFetal } from "./api"
+import { reconcileByDay } from "./reconcile"
+import { readSeeyouCache, saveSeeyouCache, shouldAutoSync } from "./cache"
 
 export async function syncSeeyou(): Promise<SeeyouSyncResult> {
   const token = getSeeyouToken()

@@ -3,7 +3,7 @@ import {
   SEEYOU_FETCH_TIMEOUT_S,
   SeeyouApiResponse,
   SeeyouFetchResult,
-} from "./seeyou_types"
+} from "./types"
 
 const QUERY_PARAMS: Record<string, string> = {
   app_id: "01",
