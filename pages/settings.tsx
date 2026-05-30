@@ -184,6 +184,7 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
         void Dialog.alert({ message: "未配置 Token", title: "同步失败", buttonLabel: "好" })
       }
       onRefresh?.()
+      Widget.reloadAll()
     } finally {
       setIsSyncing(false)
     }
@@ -201,6 +202,7 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
       const next = clearSeeyouData()
       setCache(next)
       onRefresh?.()
+      Widget.reloadAll()
     }
   }
 

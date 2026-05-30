@@ -38,12 +38,18 @@ function buildUrl(): string {
   return SEEYOU_API_URL + "?" + qs
 }
 
+function isValidListItem(item: unknown): boolean {
+  if (!item || typeof item !== "object") return false
+  const r = item as { id?: unknown; start_time?: unknown }
+  return typeof r.id === "number" && typeof r.start_time === "number"
+}
+
 function isResponseShape(value: unknown): value is SeeyouApiResponse {
   if (!Array.isArray(value)) return false
   return value.every(group => {
     if (!group || typeof group !== "object") return false
     const g = group as { date?: unknown; list?: unknown }
-    return typeof g.date === "number" && Array.isArray(g.list)
+    return typeof g.date === "number" && Array.isArray(g.list) && g.list.every(isValidListItem)
   })
 }
 

@@ -59,7 +59,7 @@ export function getTodayCard(state: FetalMovementState, nowTs = Date.now(), seey
 export function selectWidgetRows(card: DayCard | null, maxRows = 2): { rows: WidgetCycleRow[]; hiddenCount: number } {
   if (!card) return { rows: [], hiddenCount: 0 }
   const active = card.cycles.find(isLocalActive)
-  const completed = card.cycles.filter(cycle => cycle.close_reason === "expired")
+  const completed = card.cycles.filter(cycle => cycle.close_reason === "expired" || cycle.source === SEEYOU_SOURCE)
   const rows: WidgetCycleRow[] = []
   if (active) rows.push({ cycle: active, label: "当前", isActive: true })
   for (const cycle of completed) {
