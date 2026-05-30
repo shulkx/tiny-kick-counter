@@ -55,7 +55,7 @@ function MainPage() {
       if (phase === "active") {
         refresh()
         void autoSyncIfDue().then(result => {
-          if (result?.kind === "ok") refresh()
+          if (result?.kind === "ok") { refresh(); Widget.reloadAll() }
         })
       }
     }
@@ -161,7 +161,7 @@ function MainPage() {
           onAppear={() => {
             refresh()
             void autoSyncIfDue().then(result => {
-              if (result?.kind === "ok") refresh()
+              if (result?.kind === "ok") { refresh(); Widget.reloadAll() }
             })
           }}
           navigationTitle="胎动记录"
