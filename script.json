@@ -18,7 +18,7 @@
   "contributors" : [
 
   ],
-  "version" : "1.3.0",
+  "version" : "1.3.1",
   "color" : "systemPink",
   "description" : "轻量胎动计数器：主页面卡片、小组件按钮和快捷指令入口",
   "localizedNames" : {
