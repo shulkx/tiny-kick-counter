@@ -261,7 +261,11 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
     {cache.sync_enabled ? <VStack alignment="leading" spacing={12}>
       <VStack alignment="leading" spacing={8}>
         <Text font="subheadline" foregroundStyle={themeColors.secondaryLabel}>Token</Text>
-        <HStack spacing={0}>
+        <HStack
+          spacing={4}
+          padding={{ horizontal: 12, vertical: 6 }}
+          background={roundedBackground(themeColors.pillBackground, 10)}
+        >
           {showToken
             ? <TextField title="Token" value={tokenText} onChanged={setTokenText} prompt="粘贴美柚 authorization 头" />
             : <SecureField title="Token" value={tokenText} onChanged={setTokenText} prompt="粘贴美柚 authorization 头" />
@@ -271,7 +275,7 @@ function SeeyouSyncSection({ onRefresh }: { onRefresh?: () => void }) {
               systemName={showToken ? "eye.slash" : "eye"}
               font={14}
               foregroundStyle={themeColors.secondaryLabel}
-              frame={{ width: 32, height: 32 }}
+              frame={{ width: 28, height: 28 }}
             />
           </Button>
         </HStack>
