@@ -82,11 +82,9 @@ function MainPage() {
     const handleScenePhase = (phase: "active" | "inactive" | "background") => {
       if (phase === "active") {
         invalidateSeeyouData()
-        rebuildDerivedCards()
         void autoSyncIfDue().then(result => {
           if (result?.kind === "ok") {
             invalidateSeeyouData()
-            rebuildDerivedCards()
             Widget.reloadAll()
           }
         })
