@@ -63,19 +63,24 @@ This gives `widget.tsx` the same performance benefit with no interface change.
 
 Three concerns are currently conflated in `refresh()`:
 
-- **`refreshView(message?)`** — re-reads local state from disk + updates `nowTs`. Lightweight: does NOT read seeyou cache, does NOT bump version. Called by tab `onAppear`.
-- **`invalidateData(message?)`** — calls `refreshView()` then increments `dataVersion`. Called after local-only mutations: `record`, `closeCycle`, `deleteCycle`, `resetState`, `restoreBackup`. Does NOT re-read seeyou cache (these operations don't touch it).
+- **`refreshView(message?)`** — re-reads local state from disk + updates `nowTs`. Lightweight: does NOT read seeyou cache, does NOT bump version. Called by tab `onAppear`. However, `loadStateWithLazyArchive()` may archive an expired cycle (writing to disk). If archival occurred, `refreshView` must escalate to `invalidateData` so cached history/settings cards are invalidated.
+
+```ts
+function refreshView(message?: string) {
+  setNowTs(Date.now())
+  const { state, archived } = loadStateWithLazyArchiveDetailed()
+  setState(state)
+  if (message) { setToastMessage(message); setShowToast(true) }
+  if (archived) setDataVersion(v => v + 1)
+}
+```
+
+`loadStateWithLazyArchiveDetailed()` is a new variant that returns `{ state, archived: boolean }` so callers can detect whether lazy archival happened.
+
+- **`invalidateData(message?)`** — calls `refreshView()` then unconditionally increments `dataVersion`. Called after local-only mutations: `record`, `closeCycle`, `deleteCycle`, `resetState`, `restoreBackup`. Does NOT re-read seeyou cache (these operations don't touch it).
 - **`invalidateSeeyouData(message?)`** — calls `refreshView()`, re-reads seeyou cache, then increments `dataVersion`. Called only after operations that change the seeyou cache file: sync success, toggle, clear, manual refresh, scene active.
 
 ```ts
-const [dataVersion, setDataVersion] = useState(0)
-
-function refreshView(message?: string) {
-  setNowTs(Date.now())
-  setState(loadStateWithLazyArchive())
-  if (message) { setToastMessage(message); setShowToast(true) }
-}
-
 function invalidateData(message?: string) {
   refreshView(message)
   setDataVersion(v => v + 1)
@@ -169,14 +174,28 @@ This caps initial render to ~20 day sections. User taps "加载更多" to see ol
 
 Settings currently receives `cards` (30-day) as a prop for summary stats. Change to MainPage-owned lazy state, preserving 30-day semantics:
 
-MainPage holds `settingsCards` / `settingsVersion` (same pattern as history). Settings tab `onAppear` recomputes when `settingsVersion !== dataVersion`. `SettingsPage` receives `settingsCards` as a prop and an `onSeeyouDataChanged()` callback. After sync/toggle/clear operations complete within settings, the handler calls `onSeeyouDataChanged()` which triggers `invalidateSeeyouData()` in MainPage — this updates `seeyouCache` state, bumps `dataVersion`, and since MainPage re-renders, passes fresh `settingsCards` down to the still-visible settings page.
+MainPage holds `settingsCards` / `settingsVersion` (same pattern as history). Settings tab `onAppear` recomputes when `settingsVersion !== dataVersion`. `SettingsPage` receives `settingsCards` as a prop and an `onSeeyouDataChanged()` callback. After sync/toggle/clear operations complete within settings, the handler calls `onSeeyouDataChanged()` which triggers `invalidateSeeyouData()` in MainPage, then immediately recomputes `settingsCards` and syncs `settingsVersion` using the same `nextVersion` pattern as history in-page deletion:
+
+```ts
+function handleSeeyouDataChanged(message?: string) {
+  invalidateSeeyouData(message)
+  const nextVersion = dataVersion + 1  // matches the bump inside invalidateSeeyouData
+  const freshState = loadStateWithLazyArchive()
+  const freshCache = readSeeyouCache()
+  const seeyouCycles = freshCache.sync_enabled ? freshCache.cycles : []
+  setSettingsCards(buildDayCards(freshState, RECENT_DAY_LIMIT, seeyouCycles))
+  setSettingsVersion(nextVersion)
+}
+```
+
+This ensures the summary updates immediately while the settings page remains visible.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
 | `common/stats.ts` | Add `buildTodayCard`; rewrite `getTodayCard` to delegate |
-| `common/model.ts` | Re-export `buildTodayCard` (entry files import from `common/model`) |
+| `common/model.ts` | Re-export `buildTodayCard`; add `loadStateWithLazyArchiveDetailed` (returns `{ state, archived }`) |
 | `index.tsx` | Lift seeyouCache to state; split `refreshView`/`invalidateData`/`invalidateSeeyouData`; replace eager cards with `buildTodayCard`; add `dataVersion` + lazy `historyCards`/`settingsCards`; inline recompute on delete with shared nextVersion; pass `settingsCards` + `onSeeyouDataChanged` to settings |
 | `pages/history.tsx` | Add pagination (PAGE_SIZE = 20, "加载更多" button) |
 | `pages/settings.tsx` | Accept `settingsCards` prop + `onSeeyouDataChanged` callback; remove internal cards computation |
@@ -200,6 +219,6 @@ Three categories of tests to add in `tests/stats_test.ts`:
 
 - **Records tab switch**: only reads lightweight local state (no seeyou disk I/O), computes today card only → near-instant
 - **Settings tab switch**: no computation until opened, then only 30-day scan
-- **History tab switch**: still does full scan, but only when data actually changed; pagination caps render cost to ~20 sections
+- **History tab switch**: still does full scan, but only when stale (data mutated or explicitly refreshed); pagination caps render cost to ~20 sections
 - **Widget**: `getTodayCard` now O(n) filter instead of full grouping → faster widget refresh
 - **Initial load**: same or faster (only today card computed eagerly)
